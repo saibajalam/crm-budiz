@@ -8,7 +8,6 @@ class RegisterSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=100)
     password = serializers.CharField(write_only=True, min_length=8)
     phone_number = serializers.CharField(max_length=15)
-    role_id = serializers.IntegerField()
 
     def validate_email(self, value):
         if User.objects.filter(email=value).exists():
@@ -20,21 +19,17 @@ class RegisterSerializer(serializers.Serializer):
             raise serializers.ValidationError("Phone number already exists")
         return value
 
-    def validate_role_id(self, value):
-        if not Role.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Invalid role")
-        return value
-
     def create(self, validated_data):
-        role_id = validated_data.pop("role_id")
         password = validated_data.pop("password")
 
+        # Create user
         user = User.objects.create_user(
             password=password,
             **validated_data
         )
 
-        role = Role.objects.get(id=role_id)
+        # Auto-assign sales_representative role
+        role = Role.objects.get(name="sales_representative")
         UserRole.objects.create(user=user, role=role)
 
         return user
@@ -135,3 +130,5 @@ class ResendVerificationSerializer(serializers.Serializer):
 
         self.user = user 
         return value
+    
+

@@ -1,6 +1,7 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status, permissions
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 
@@ -16,7 +17,7 @@ from accounts.jobs.emails_verification import resend_email_verification
 class RegisterAPI(APIView):
 
     authentication_classes = []
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -55,7 +56,7 @@ class RegisterAPI(APIView):
 # Login API jwt based
 
 class LoginAPIView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = LoginSerializers(data=request.data)
@@ -80,6 +81,8 @@ class LoginAPIView(APIView):
             "error" : None,
             "status_code" : 200
         }, status=status.HTTP_200_OK)
+    
+
     
 class UserCreateAPIView(APIView):
     authentication_classes = []  # later JWT
@@ -238,7 +241,7 @@ class VerifyEmailAPIView(APIView):
 
 class ResendVerificationAPIView(APIView):
     authentication_classes = []
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = ResendVerificationSerializer(data=request.data)
@@ -259,13 +262,12 @@ class ResendVerificationAPIView(APIView):
         )
 
 
-
 #role based API
 
 class SuperAdminDashboardAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    @role_required("SuperAdmin")
+    @role_required("superadmin")
     def get(self, request):
         return Response({
             "message": "Welcome to SuperAdmin Dashboard",
@@ -276,9 +278,9 @@ class SuperAdminDashboardAPIView(APIView):
 
 
 class AdminDashboardAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    @role_required("Admin")
+    @role_required("admin")
     def get(self, request):
         return Response({
             "message": "Welcome to Admin Dashboard",
@@ -289,9 +291,9 @@ class AdminDashboardAPIView(APIView):
 
 
 class ManagerDashboardAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    @role_required("Manager")
+    @role_required("manager")
     def get(self, request):
         return Response({
             "message": "Welcome to Manager Dashboard",
@@ -302,9 +304,9 @@ class ManagerDashboardAPIView(APIView):
 
 
 class SalesDashboardAPIView(APIView):
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
-    @role_required("Sales Representative")
+    @role_required("sales_representative")
     def get(self, request):
         return Response({
             "message": "Welcome to Sales Dashboard",

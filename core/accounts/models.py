@@ -6,6 +6,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 
+
 # Create your models here.
 
 class TimeStampedModel(models.Model):
@@ -35,6 +36,9 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel) :
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']
 
+    class Meta:
+        db_table = "users"
+
     def __str__(self):
         return self.email
     
@@ -50,6 +54,9 @@ class Role(TimeStampedModel) :
     name = models.CharField(max_length= 100, unique= True)
     description = models.TextField(blank= True)
 
+    class Meta:
+        db_table = "role"
+
     def __str__(self):
         return self.name
     
@@ -59,6 +66,7 @@ class UserRole(TimeStampedModel) :
     role = models.ForeignKey(Role, on_delete= models.CASCADE)
 
     class Meta:
+        db_table = "user_role"
         unique_together = ('user', 'role')
 
 
@@ -66,6 +74,9 @@ class PasswordResetToken(TimeStampedModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     is_used = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "password_reset_token"
 
     def is_expired(self):
         return self.created_at < timezone.now() - timedelta(minutes=15)
@@ -79,8 +90,14 @@ class EmailVerificationToken(TimeStampedModel):
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     is_used = models.BooleanField(default=False)
 
+    class Meta:
+        db_table = "email_verification_token"
+
     def is_expired(self):
         return self.created_at < timezone.now() - timedelta(hours=24)
 
     def __str__(self):
         return f"{self.user.email} - {self.token}"
+    
+
+

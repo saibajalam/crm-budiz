@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     #own installed apps
     'rest_framework',
     'accounts.apps.AccountsConfig',
+    'leads.apps.LeadsConfig',
 ]
 
 MIDDLEWARE = [
