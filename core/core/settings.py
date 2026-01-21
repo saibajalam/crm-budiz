@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'rest_framework',
     'accounts.apps.AccountsConfig',
     'leads.apps.LeadsConfig',
+    'subscriptions.apps.SubscriptionsConfig',
+    'common.apps.CommonConfig',
 ]
 
 MIDDLEWARE = [
@@ -52,6 +54,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+
+    "subscriptions.middleware.SubscriptionRequiredMiddleware",
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -147,4 +151,19 @@ SIMPLE_JWT = {
     'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
 }
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
+TRIAL_PERIOD_DAYS = 3
+
+# days before subscription/trial expires to send reminder
+SUBSCRIPTION_REMINDER_DAYS = [7, 3, 1]
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_HOST = 'smtp.gmail.com'
+# EMAIL_USE_TLS = True
+# EMAIL_PORT = 587
+# EMAIL_HOST_USER = 'youremail@gmail.com'
+# EMAIL_HOST_PASSWORD = 'your_app_password'
+# DEFAULT_FROM_EMAIL = 'noreply@yourcrm.com'

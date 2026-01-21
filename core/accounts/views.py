@@ -15,39 +15,35 @@ from accounts.jobs.emails_verification import resend_email_verification
 
 
 class RegisterAPI(APIView):
-
     authentication_classes = []
-    permission_classes = [AllowAny]
+    permission_classes = []
 
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
-        if not serializer.is_valid():
-            return Response(
-                {
-                    "data": None,
-                    "status": status.HTTP_400_BAD_REQUEST,
-                    "message": "Validation error",
-                    "error": serializer.errors,
-                    "success": False
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer.is_valid(raise_exception=True)
 
-        user = serializer.save()
+        result = serializer.save()
 
-        # Create email verification token
-        EmailVerificationToken.objects.create(user=user)
+        response_data = {
+            "user": {
+                "id": result["user"].id,
+                "email": result["user"].email,
+                "full_name": result["user"].full_name,
+            }
+        }
+
+        if result["type"] == "company":
+            response_data["company"] = {
+                "id": result["company"].id,
+                "name": result["company"].company_name,
+            }
 
         return Response(
             {
-                "data": {
-                    "email": user.email,
-                    "full_name": user.full_name
-                },
-                "status": status.HTTP_201_CREATED,
-                "message": "Account created. Please verify your email.",
-                "error": None,
-                "success": True
+                "success": True,
+                "message": "Registration successful",
+                "data": response_data,
+                "error": None
             },
             status=status.HTTP_201_CREATED
         )

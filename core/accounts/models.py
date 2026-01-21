@@ -4,17 +4,11 @@ from .managers import UserManager
 import uuid
 from django.utils import timezone
 from datetime import timedelta
+from common.models import TimeStampedModel
 
 
 
 # Create your models here.
-
-class TimeStampedModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        abstract = True
 
 class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel) :
     email = models.EmailField(unique= True, null= False)
@@ -30,14 +24,28 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel) :
     is_staff = models.BooleanField(default= False)
     date_joined = models.DateTimeField(auto_now_add= True)
     is_email_verified = models.BooleanField(default=False)
-
+    
     objects = UserManager()
+
+    company = models.ForeignKey(
+        "subscriptions.Company",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="users"
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['full_name']
 
+    trial_starts_at = models.DateTimeField(null=True, blank=True)
+    trial_ends_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         db_table = "users"
+
+    def is_trial_active(self):
+        return self.trial_ends_at and self.trial_ends_at > timezone.now()
 
     def __str__(self):
         return self.email

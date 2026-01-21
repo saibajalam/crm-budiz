@@ -1,19 +1,19 @@
 LEAD_STATUS_CHOICES = (
-    ("NEW", "New"),
-    ("CONTACTED", "Contacted"),
-    ("QUALIFIED", "Qualified"),
-    ("UNQUALIFIED", "Unqualified"),
-    ("LOST", "Lost"),
+    ("new", "New"),
+    ("contacted", "Contacted"),
+    ("qualified", "Qualified"),
+    ("unqualified", "Unqualified"),
+    ("lost", "Lost"),
 )
 
 LEAD_SOURCE_CHOICES = (
-    ("WEBSITE", "Website"),
-    ("REFERRAL", "Referral"),
-    ("SOCIAL_MEDIA", "Social Media"),
-    ("EMAIL_CAMPAIGN", "Email Campaign"),
-    ("EVENT", "Event"),
-    ("COLD_CALL", "Cold Call"),
-    ("OTHER", "Other"),
+    ("website", "Website"),
+    ("referral", "Referral"),
+    ("social_media", "Social Media"),
+    ("email_campaign", "Email Campaign"),
+    ("event", "Event"),
+    ("cold_call", "Cold Call"),
+    ("other", "Other"),
 )
 
 ROLE_SUPERADMIN = "SuperAdmin"
