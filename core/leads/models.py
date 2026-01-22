@@ -1,6 +1,6 @@
 from django.db import models
 from accounts.models import TimeStampedModel
-from accounts.constants import LEAD_SOURCE_CHOICES, LEAD_STATUS_CHOICES
+from core.constants import LEAD_SOURCE_CHOICES, LEAD_STATUS_CHOICES
 from django.conf import settings
 import PIL
 
@@ -69,9 +69,9 @@ class LeadActivity(TimeStampedModel):
     ]
 
     lead = models.ForeignKey(
-    "leads.Lead",
-    on_delete=models.CASCADE,
-    related_name="activities"
+        "leads.Lead",
+        on_delete=models.CASCADE,
+        related_name="activities"
     )
 
     activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)
@@ -81,12 +81,6 @@ class LeadActivity(TimeStampedModel):
     description = models.TextField(blank=True)
 
     due_date = models.DateTimeField(null=True, blank=True)
-
-    attachment = models.FileField(
-        upload_to="lead-activity/",
-        null=True,
-        blank=True
-    )
 
     performed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

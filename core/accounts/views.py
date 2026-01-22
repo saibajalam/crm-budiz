@@ -100,7 +100,7 @@ class UserCreateAPIView(APIView):
                     "roles": list(user.get_roles()),
                 },
                 "success" : True,
-                "errro" : None,
+                "error" : None,
                 "status_code" : 200
             },
             status=status.HTTP_201_CREATED,

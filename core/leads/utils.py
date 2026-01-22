@@ -4,6 +4,7 @@ ACTIVITY_SCORE_MAP = {
     "meeting": 20,
     "note": 2,
     "task": 3,
+    "attachments": 15,
 }
 
 

@@ -1,40 +1,65 @@
-from rest_framework.views import APIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.response import Response
+from rest_framework import status
+from django.shortcuts import get_object_or_404
+
+from .models import Lead, LeadActivity, LeadActivityAttachment
 from .serializers import (
     CreateLeadSerializer,
     LeadActivityCreateSerializer,
-    LeadActivityUpdateSerializer, 
-    LeadListSerializer, 
+    LeadActivityUpdateSerializer,
+    LeadListSerializer,
     LeadDetailSerializer,
-    LeadActivityListSerializer
+    LeadActivityListSerializer,
+    LeadUpdateSerializer
 )
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework import status
-from .models import LeadActivity, Lead, LeadActivityAttachment
 from subscriptions.permissions import HasActiveSubscription
-from rest_framework.parsers import MultiPartParser, FormParser
+from .permissions import CanDeleteLead, CanDeleteLeadActivity
+from core.pagination import LeadPagination
+from leads.utils import update_lead_score
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
-from core.pagination import LeadPagination
-from rest_framework.generics import ListAPIView, RetrieveAPIView
 
-# Create your views here.
-
-class CreateLeadAPIView(APIView):
+# -------------------
+# Leads
+# -------------------
+class LeadListCreateAPIView(ListCreateAPIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
+    queryset = Lead.objects.all()
+    serializer_class = LeadListSerializer
+    pagination_class = LeadPagination
+    filter_backends = [SearchFilter, DjangoFilterBackend]
+    search_fields = ["first_name", "last_name", "email", "phone", "company"]
+    filterset_fields = ["status", "source"]
+    ordering_fields = ["created_at", "score"]
+    ordering = ["-created_at"]
 
-    def post(self, request):
-        serializer = CreateLeadSerializer(
-            data=request.data,
-            context={"request": request}
-            )
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return CreateLeadSerializer
+        return LeadListSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response({
+            "message": "Leads retrieved successfully",
+            "data": serializer.data,
+            "success": True,
+            "error": None,
+            "status_code": 200
+        })
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        lead = serializer.save()
-
+        self.perform_create(serializer)
+        lead = serializer.instance
         return Response(
             {
-                "success": True,
                 "message": "Lead created successfully",
                 "data": {
                     "id": lead.id,
@@ -42,187 +67,203 @@ class CreateLeadAPIView(APIView):
                     "last_name": lead.last_name,
                     "email": lead.email,
                     "status": lead.status,
-                    "source": lead.source,
-                }
+                    "source": lead.source
+                },
+                "success": True,
+                "error": None,
+                "status_code": 201
             },
             status=status.HTTP_201_CREATED
         )
 
-
-class CreateLeadActivityAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
-
-    def post(self, request):
-        serializer = LeadActivityCreateSerializer(
-            data=request.data,
-            context={"request": request}
-            )
-        serializer.is_valid(raise_exception=True)
-
-        lead = serializer.validated_data["lead"]
-
-        activity = LeadActivity.objects.create(
-        lead= lead,
-        activity_type=serializer.validated_data["activity_type"],
-        priority=serializer.validated_data["priority"],
-        subject=serializer.validated_data["subject"],
-        description=serializer.validated_data.get("description", ""),
-        due_date=serializer.validated_data.get("due_date"),
-        attachment=serializer.validated_data.get("attachment"),
-        performed_by=request.user,
-    )
-
-        # Update lead score
-        from leads.utils import update_lead_score
-        update_lead_score(lead, activity.activity_type)
-
-        return Response(
-            {
-                "success": True,
-                "message": "Activity created successfully",
-                "data": {
-                    "activity_id": activity.id,
-                    "lead_score": lead.score
-                },
-                "error": None
-            },
-            status=status.HTTP_201_CREATED
-        )
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
-
-class LeadListAPIView(ListAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated, HasActiveSubscription, CanDeleteLead]
     queryset = Lead.objects.all()
-    serializer_class = LeadListSerializer
-    pagination_class = LeadPagination
-
-    filter_backends = [
-        SearchFilter,
-        DjangoFilterBackend,
-        OrderingFilter,
-    ]
-
-    search_fields = [
-        "first_name",
-        "last_name",
-        "email",
-        "phone",
-        "company",
-    ]
-
-    filterset_fields = ["status", "source"]
-    ordering_fields = ["created_at", "score"]
-    ordering = ["-created_at"]
-
-
-class UpdateLeadActivityAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
-    parser_classes = [MultiPartParser, FormParser]
-
-    def put(self, request, activity_id):
-        try:
-            activity = LeadActivity.objects.get(
-                id=activity_id,
-                performed_by=request.user
-            )
-        except LeadActivity.DoesNotExist:
-            return Response(
-                {"error": "Activity not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        serializer = LeadActivityUpdateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        # Update fields dynamically
-        for field, value in serializer.validated_data.items():
-            if field != "attachments":
-                setattr(activity, field, value)
-
-        activity.save()
-
-        # Save new attachments (append only)
-        attachments = request.FILES.getlist("attachments")
-        for file in attachments:
-            LeadActivityAttachment.objects.create(
-                activity=activity,
-                file=file
-            )
-
-        return Response(
-            {
-                "success": True,
-                "message": "Activity updated successfully",
-                "data": {
-                    "activity_id": activity.id,
-                    "attachments_added": len(attachments)
-                },
-                "error": None
-            },
-            status=status.HTTP_200_OK
-        )
-    
-
-
-class DeleteLeadActivityAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
-
-    def delete(self, request, activity_id):
-        try:
-            activity = LeadActivity.objects.get(
-                id=activity_id,
-                performed_by=request.user
-            )
-        except LeadActivity.DoesNotExist:
-            return Response(
-                {"error": "Activity not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        activity.delete()
-
-        return Response(
-            {
-                "success": True,
-                "message": "Activity deleted successfully",
-                "data": None,
-                "error": None
-            },
-            status=status.HTTP_200_OK
-        )
-
-
-
-class LeadDetailAPIView(RetrieveAPIView) :
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
-    queryset = Lead.objects.all()
-    serializer_class = LeadDetailSerializer
-
-    def get_queryset(self):
-        return Lead.objects.select_related("created_by")
-    
-    lookup_field = "id"
     lookup_url_kwarg = "lead_id"
 
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return LeadUpdateSerializer
+        return LeadDetailSerializer
 
-class LeadActivityListView(ListAPIView) :
+    def retrieve(self, request, *args, **kwargs):
+        lead = self.get_object()
+        serializer = self.get_serializer(lead)
+        return Response(
+            {
+                "message": "Lead retrieved successfully",
+                "data": serializer.data,
+                "success": True,
+                "error": None,
+                "status_code": 200
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        response_serializer = LeadDetailSerializer(instance, context={"request": request})
+        return Response(
+            {
+                "message": "Lead updated successfully",
+                "data": response_serializer.data,
+                "success": True,
+                "error": None,
+                "status_code": 200
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(
+            {
+                "message": "Lead deleted successfully",
+                "data": None,
+                "success": True,
+                "error": None,
+                "status_code": 200
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+# -------------------
+# Lead Activities
+# -------------------
+class LeadActivityListCreateAPIView(ListCreateAPIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
     serializer_class = LeadActivityListSerializer
     pagination_class = LeadPagination
+    parser_classes = [MultiPartParser, FormParser]
 
     def get_queryset(self):
-        lead_id = self.kwargs.get("lead_id")
+        lead_id = self.kwargs["lead_id"]
+        get_object_or_404(Lead, id=lead_id)
         return (
             LeadActivity.objects
             .filter(lead_id=lead_id)
             .select_related("performed_by")
             .order_by("-created_at")
         )
-    
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context["request"] = self.request
-        return context
-    
-        
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return LeadActivityCreateSerializer
+        return LeadActivityListSerializer
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        page = self.paginate_queryset(queryset)
+        serializer = self.get_serializer(page, many=True)
+        return self.get_paginated_response({
+            "message": "Lead activities retrieved successfully",
+            "data": serializer.data,
+            "success": True,
+            "error": None,
+            "status_code": 200
+        })
+
+    def perform_create(self, serializer):
+        lead = get_object_or_404(Lead, id=self.kwargs["lead_id"])
+        activity = LeadActivity.objects.create(
+            lead=lead,
+            activity_type=serializer.validated_data["activity_type"],
+            priority=serializer.validated_data.get("priority", "medium"),
+            subject=serializer.validated_data["subject"],
+            description=serializer.validated_data.get("description", ""),
+            due_date=serializer.validated_data.get("due_date"),
+            attachment=serializer.validated_data.get("attachment"),
+            performed_by=self.request.user,
+        )
+        # Update lead score
+        update_lead_score(lead, activity.activity_type)
+        serializer.instance = activity  # required if you want serializer.instance for later
+
+        return Response( 
+            {
+                "success": True, 
+                "message": "Activity created successfully", 
+                "data": 
+                    {
+                        "activity_id": activity.id, 
+                        "lead_score": lead.score }, 
+                        "error": None 
+                    }, 
+                    status=status.HTTP_201_CREATED )
+
+
+class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
+    permission_classes = [IsAuthenticated, HasActiveSubscription, CanDeleteLeadActivity]
+    queryset = LeadActivity.objects.all()
+    lookup_url_kwarg = "activity_id"
+    parser_classes = [MultiPartParser, FormParser]
+
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return LeadActivityUpdateSerializer
+        return LeadActivityListSerializer
+
+    def retrieve(self, request, *args, **kwargs):
+        activity = self.get_object()
+        serializer = self.get_serializer(activity)
+        return Response(
+            {
+                "message": "Lead activity retrieved successfully",
+                "data": serializer.data,
+                "success": True,
+                "error": None,
+                "status_code": 200
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def update(self, request, *args, **kwargs):
+        kwargs["partial"] = True
+        activity = self.get_object()
+        serializer = self.get_serializer(activity, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+
+        # Save attachments
+        attachments = request.FILES.getlist("attachments")
+        for file in attachments:
+            LeadActivityAttachment.objects.create(activity=activity, file=file)
+
+        return Response(
+            {
+                "message": "Lead activity updated successfully",
+                "data": {
+                    "activity_id": activity.id,
+                    "attachments_added": len(attachments)
+                },
+                "success": True,
+                "error": None,
+                "status_code": 200
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        activity = self.get_object()
+        self.perform_destroy(activity)
+        return Response(
+            {
+                "message": "Lead activity deleted successfully",
+                "data": None,
+                "success": True,
+                "error": None,
+                "status_code": 200
+            },
+            status=status.HTTP_200_OK
+        )

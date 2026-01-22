@@ -1,20 +1,25 @@
 from django.urls import path
 from .views import (
-    CreateLeadAPIView, 
-    CreateLeadActivityAPIView, 
-    UpdateLeadActivityAPIView, 
-    DeleteLeadActivityAPIView, 
-    LeadListAPIView, 
-    LeadDetailAPIView,
-    LeadActivityListView
+    LeadListCreateAPIView,
+    LeadRetrieveUpdateDeleteAPIView,
+    LeadActivityListCreateAPIView,
+    LeadActivityRetrieveUpdateDeleteAPIView
 )
 
 urlpatterns = [
-    path("leads/", CreateLeadAPIView.as_view(), name="add_lead"),
-    path("lead-activity/", CreateLeadActivityAPIView.as_view(), name="create_leadActivity"),
-    path("update-leadActivity/", UpdateLeadActivityAPIView.as_view(), name="update_leadActivity"),
-    path("delete-leadActivity/", DeleteLeadActivityAPIView.as_view(), name="delete_leadActivity"),
-    path("lead_list/", LeadListAPIView.as_view(), name="lead_list"),
-    path("leads/<lead_id>/", LeadDetailAPIView.as_view(), name="lead_detail_list"),
-    path("lead-activity/<lead_id>", LeadActivityListView.as_view(), name="lead_activity_list")
+    # Leads
+    path("leads/", LeadListCreateAPIView.as_view(), name="lead_list_create"),  # GET=list, POST=create
+    path("leads/<int:lead_id>/", LeadRetrieveUpdateDeleteAPIView.as_view(), name="lead_detail_update_delete"),  # GET/PUT/PATCH/DELETE
+
+    # Lead Activities (nested under lead)
+    path(
+        "leads/<int:lead_id>/activities/",
+        LeadActivityListCreateAPIView.as_view(),
+        name="lead_activity_list_create"
+    ),  # GET=list, POST=create
+    path(
+        "leads/<int:lead_id>/activities/<int:activity_id>/",
+        LeadActivityRetrieveUpdateDeleteAPIView.as_view(),
+        name="lead_activity_detail_update_delete"
+    ),  # GET/PUT/PATCH/DELETE
 ]
