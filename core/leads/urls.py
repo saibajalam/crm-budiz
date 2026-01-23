@@ -3,7 +3,9 @@ from .views import (
     LeadListCreateAPIView,
     LeadRetrieveUpdateDeleteAPIView,
     LeadActivityListCreateAPIView,
-    LeadActivityRetrieveUpdateDeleteAPIView
+    LeadActivityRetrieveUpdateDeleteAPIView,
+    LeadRestoreAPIView,
+    LeadActivityRestoreAPIView
 )
 
 urlpatterns = [
@@ -22,4 +24,7 @@ urlpatterns = [
         LeadActivityRetrieveUpdateDeleteAPIView.as_view(),
         name="lead_activity_detail_update_delete"
     ),  # GET/PUT/PATCH/DELETE
+
+    path("leads/<int:lead_id>/restore/", LeadRestoreAPIView.as_view(), name="restore_lead"),
+    path("leads/activities/<int:activity_id>/restore/", LeadActivityRestoreAPIView.as_view(), name="restore_activity"),
 ]
