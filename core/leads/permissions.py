@@ -6,6 +6,7 @@ class CanDeleteLead(BasePermission):
     """
     Allow delete only if:
     - user is lead owner
+    -user is superadmin
     - user has admin role
     - user has manager role
     """
@@ -20,11 +21,9 @@ class CanDeleteLead(BasePermission):
         if obj.created_by == user:
             return True
 
-        # 2️⃣ Admin or Manager role can delete
-        return UserRole.objects.filter(
-            user=user,
-            role__name__in=["admin", "manager"]
-        ).exists()
+        # 2️⃣ SuperAdmin, Admin or Manager role can delete
+        if user.is_admin_or_manager:
+            return True
 
 
 class CanDeleteLeadActivity(BasePermission):
@@ -46,7 +45,7 @@ class CanDeleteLeadActivity(BasePermission):
             return True
 
         # You can also allow based on role if your User model has roles
-        if hasattr(request.user, "role") and request.user.role in ["admin", "superadmin"]:
+        if request.user.is_admin_or_manager:
             return True
 
         # Allow the user who created the activity

@@ -44,6 +44,12 @@ class User(AbstractBaseUser, PermissionsMixin, TimeStampedModel) :
     class Meta:
         db_table = "users"
 
+    @property
+    def is_admin_or_manager(self):
+        if not hasattr(self, "role") or not self.role:
+            return False
+        return self.role.name in ["admin", "superadmin", "manager"]
+
     def is_trial_active(self):
         return self.trial_ends_at and self.trial_ends_at > timezone.now()
 

@@ -45,6 +45,14 @@ class Lead(TimeStampedModel, SoftDeleteModel):
         related_name="leads"
     )
 
+    workspace = models.ForeignKey(
+        "workspaces.Workspace",
+        on_delete=models.CASCADE,
+        related_name="leads",
+        null=True,
+        blank=True
+    )
+
     objects = SoftDeleteManager()      # default
     all_objects = models.Manager()  # includes deleted leads
 
@@ -102,6 +110,14 @@ class LeadActivity(TimeStampedModel, SoftDeleteModel):
         "leads.Lead",
         on_delete=models.CASCADE,
         related_name="activities"
+    )
+
+    workspace = models.ForeignKey(
+        "workspaces.Workspace",
+        on_delete=models.CASCADE,
+        related_name="activities",
+        null=True,
+        blank=True
     )
 
     activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)

@@ -13,6 +13,8 @@ from .serializers import (
     DealAssignmentSerializer,
 )
 from subscriptions.permissions import HasActiveSubscription
+from .permissions import IsDealOwnerAssigneeOrAdmin
+from rest_framework.exceptions import PermissionDenied
 
 
 class CreateDealAPIView(APIView):
@@ -80,13 +82,14 @@ class PipelineWiseDealListAPIView(ListAPIView):
         )
 
 
+
 class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsDealOwnerAssigneeOrAdmin]
     queryset = Deal.objects.all()
     lookup_url_kwarg = "deal_id"
 
     def get_serializer_class(self):
-        if self.request.method == ["PUT", "PATCH"]:
+        if self.request.method in ["PUT", "PATCH"]:
             return DealUpdateSerializer
         return DealDetailSerializer
 
@@ -141,7 +144,7 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
 
 
 class DealRestoreAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsDealOwnerAssigneeOrAdmin]
 
     def post(self, request, deal_id):
         try:
@@ -158,19 +161,12 @@ class DealRestoreAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not (request.user == deal.assigned_to or request.user.is_staff):
-            return Response(
-                {
-                    "message": "You do not have permission to restore this deal",
-                    "data": None,
-                    "success": False,
-                    "error": True,
-                    "status_code": status.HTTP_403_FORBIDDEN,
-                },
-                status=status.HTTP_403_FORBIDDEN,
-            )
+        permission = IsDealOwnerAssigneeOrAdmin()
+        if not permission.has_object_permission(request, self, deal):
+            raise PermissionDenied("You do not have permission to restore this deal.")
 
         deal.restore()
+
 
         return Response(
             {
@@ -185,7 +181,7 @@ class DealRestoreAPIView(APIView):
 
 
 class DealAssignmentUpdateAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsDealOwnerAssigneeOrAdmin]
 
     def patch(self, request, deal_id):
         try:

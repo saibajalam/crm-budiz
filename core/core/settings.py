@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "subscriptions.apps.SubscriptionsConfig",
     "common.apps.CommonConfig",
     "deals.apps.DealsConfig",
+    "workspaces.apps.WorkspacesConfig",
 ]
 
 MIDDLEWARE = [

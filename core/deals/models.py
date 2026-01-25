@@ -38,6 +38,14 @@ class Deal(TimeStampedModel, SoftDeleteModel):
         related_name="assigned_deals",
     )
 
+    workspace = models.ForeignKey(
+        "workspaces.Workspace",
+        on_delete=models.CASCADE,
+        related_name="deals",
+        null=True,
+        blank=True
+    )
+
     notes = models.TextField(blank=True)
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)

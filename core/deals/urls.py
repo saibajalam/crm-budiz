@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import (
     CreateDealAPIView,
-    RetrieveUpdateDestroyAPIView,
+    DealRetrieveUpdateDeleteAPIView,
     DealRestoreAPIView,
     PipelineWiseDealListAPIView,
     DealAssignmentUpdateAPIView,
@@ -11,7 +11,7 @@ urlpatterns = [
     path("deals/", CreateDealAPIView.as_view(), name="create_deal"),
     path(
         "deals/<int:deal_id>/",
-        RetrieveUpdateDestroyAPIView.as_view(),
+        DealRetrieveUpdateDeleteAPIView.as_view(),
         name="retrieve_update_delete_deal",
     ),
     path(
