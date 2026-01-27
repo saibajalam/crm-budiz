@@ -14,21 +14,24 @@ from .serializers import (
     LeadListSerializer,
     LeadDetailSerializer,
     LeadActivityListSerializer,
-    LeadUpdateSerializer
+    LeadUpdateSerializer,
 )
 from subscriptions.permissions import HasActiveSubscription
 from .permissions import CanDeleteLead, CanDeleteLeadActivity
 from core.pagination import LeadPagination
 from leads.utils import update_lead_score
-from rest_framework.filters import SearchFilter, OrderingFilter
+from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
+from workspaces.utils import get_user_workspace
+from workspaces.permissions import IsWorkspaceMember, IsWorkspaceOwnerOrAdmin
+from common.utils import format_display_number
 
 
 # -------------------
 # Leads
 # -------------------
 class LeadListCreateAPIView(ListCreateAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
     queryset = Lead.objects.all()
     serializer_class = LeadListSerializer
     pagination_class = LeadPagination
@@ -37,6 +40,9 @@ class LeadListCreateAPIView(ListCreateAPIView):
     filterset_fields = ["status", "source"]
     ordering_fields = ["created_at", "score"]
     ordering = ["-created_at"]
+
+    def get_queryset(self):
+        return Lead.objects.filter(workspace_members_user=self.request.user)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -47,44 +53,68 @@ class LeadListCreateAPIView(ListCreateAPIView):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
-        return self.get_paginated_response({
-            "message": "Leads retrieved successfully",
-            "data": serializer.data,
-            "success": True,
-            "error": None,
-            "status_code": 200
-        })
+        return self.get_paginated_response(
+            {
+                "message": "Leads retrieved successfully",
+                "data": serializer.data,
+                "success": True,
+                "error": None,
+                "status_code": 200,
+            }
+        )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        lead = serializer.instance
+
+        workspace = get_user_workspace(request.user)
+        if not workspace:
+            return Response(
+                {
+                    "message": "No active workspace found",
+                    "success": False,
+                    "error": True,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        lead = serializer.save(
+            workspace=workspace,
+            created_by=request.user,
+        )
+
         return Response(
             {
                 "message": "Lead created successfully",
                 "data": {
                     "id": lead.id,
+                    "display_number": lead.display_number,
+                    "formatted_number": format_display_number(
+                        "LEAD", lead.display_number
+                    ),
                     "first_name": lead.first_name,
                     "last_name": lead.last_name,
                     "email": lead.email,
                     "status": lead.status,
-                    "source": lead.source
+                    "source": lead.source,
+                    "workspace_id": lead.workspace_id,
+                    "created_by_id": lead.created_by_id,
                 },
                 "success": True,
                 "error": None,
-                "status_code": 201
+                "status_code": status.HTTP_201_CREATED,
             },
-            status=status.HTTP_201_CREATED
+            status=status.HTTP_201_CREATED,
         )
-
-    def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
-
 
 
 class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription, CanDeleteLead]
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveSubscription,
+        CanDeleteLead,
+        IsWorkspaceOwnerOrAdmin,
+    ]
     queryset = Lead.objects.all()
     lookup_url_kwarg = "lead_id"
 
@@ -102,9 +132,9 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "data": serializer.data,
                 "success": True,
                 "error": None,
-                "status_code": 200
+                "status_code": status.HTTP_200_OK,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     def update(self, request, *args, **kwargs):
@@ -113,16 +143,18 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-        response_serializer = LeadDetailSerializer(instance, context={"request": request})
+        response_serializer = LeadDetailSerializer(
+            instance, context={"request": request}
+        )
         return Response(
             {
                 "message": "Lead updated successfully",
                 "data": response_serializer.data,
                 "success": True,
                 "error": None,
-                "status_code": 200
+                "status_code": status.HTTP_200_OK,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -134,11 +166,11 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "data": None,
                 "success": True,
                 "error": None,
-                "status_code": 200
+                "status_code": status.HTTP_200_OK,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
-    
+
     def restore(self, request, *args, **kwargs):
         lead = self.get_object()
         lead.restore()
@@ -148,15 +180,18 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "data": None,
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             },
             status=status.HTTP_200_OK,
-    )
-
+        )
 
 
 class LeadRestoreAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]  # can add custom permission if needed
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveSubscription,
+        IsWorkspaceMember,
+    ]  # can add custom permission if needed
 
     def post(self, request, lead_id):
         try:
@@ -200,13 +235,13 @@ class LeadRestoreAPIView(APIView):
         )
 
 
-
 # -------------------
 # Lead Activities
 # -------------------
 
+
 class LeadActivityListCreateAPIView(ListCreateAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
     serializer_class = LeadActivityListSerializer
     pagination_class = LeadPagination
     parser_classes = [MultiPartParser, FormParser]
@@ -215,8 +250,7 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
         lead_id = self.kwargs["lead_id"]
         get_object_or_404(Lead, id=lead_id)
         return (
-            LeadActivity.objects
-            .filter(lead_id=lead_id)
+            LeadActivity.objects.filter(lead_id=lead_id)
             .select_related("performed_by")
             .order_by("-created_at")
         )
@@ -230,13 +264,15 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
         serializer = self.get_serializer(page, many=True)
-        return self.get_paginated_response({
-            "message": "Lead activities retrieved successfully",
-            "data": serializer.data,
-            "success": True,
-            "error": None,
-            "status_code": 200
-        })
+        return self.get_paginated_response(
+            {
+                "message": "Lead activities retrieved successfully",
+                "data": serializer.data,
+                "success": True,
+                "error": None,
+                "status_code": status.HTTP_200_OK,
+            }
+        )
 
     def perform_create(self, serializer):
         lead = get_object_or_404(Lead, id=self.kwargs["lead_id"])
@@ -252,24 +288,29 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
         )
         # Update lead score
         update_lead_score(lead, activity.activity_type)
-        serializer.instance = activity  # required if you want serializer.instance for later
+        serializer.instance = (
+            activity  # required if you want serializer.instance for later
+        )
 
-        return Response( 
+        return Response(
             {
-                "success": True, 
-                "message": "Activity created successfully", 
-                "data": 
-                    {
-                        "activity_id": activity.id, 
-                        "lead_score": lead.score }, 
-                        "error": None 
-                    }, 
-                    status=status.HTTP_201_CREATED )
-
+                "success": True,
+                "message": "Activity created successfully",
+                "data": {"activity_id": activity.id, "lead_score": lead.score},
+                "error": None,
+                "status": status.HTTP_201_CREATED,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription, CanDeleteLeadActivity]
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveSubscription,
+        CanDeleteLeadActivity,
+        IsWorkspaceMember,
+    ]
     queryset = LeadActivity.objects.all()
     lookup_url_kwarg = "activity_id"
     parser_classes = [MultiPartParser, FormParser]
@@ -288,9 +329,9 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "data": serializer.data,
                 "success": True,
                 "error": None,
-                "status_code": 200
+                "status_code": status.HTTP_200_OK,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     def update(self, request, *args, **kwargs):
@@ -299,7 +340,6 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(activity, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
-
 
         # Save attachments
         attachments = request.FILES.getlist("attachments")
@@ -311,13 +351,13 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "message": "Lead activity updated successfully",
                 "data": {
                     "activity_id": activity.id,
-                    "attachments_added": len(attachments)
+                    "attachments_added": len(attachments),
                 },
                 "success": True,
                 "error": None,
-                "status_code": 200
+                "status_code": status.HTTP_200_OK,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     def destroy(self, request, *args, **kwargs):
@@ -329,9 +369,9 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "data": None,
                 "success": True,
                 "error": None,
-                "status_code": 200
+                "status_code": status.HTTP_200_OK,
             },
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
     def restore(self, request, *args, **kwargs):
@@ -343,15 +383,14 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
                 "data": None,
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             },
             status=status.HTTP_200_OK,
-    )
-    
+        )
 
 
 class LeadActivityRestoreAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
     def post(self, request, activity_id):
         try:

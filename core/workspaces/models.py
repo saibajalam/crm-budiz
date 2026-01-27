@@ -1,8 +1,11 @@
+import uuid
 from django.db import models
 from django.conf import settings
 from common.models import TimeStampedModel
-from common.managers import SoftDeleteManager
 from django.utils import timezone
+from .choices import WorkspaceRole
+from datetime import timedelta
+
 
 # Create your models here.
 
@@ -37,7 +40,7 @@ class WorkspaceMember(TimeStampedModel):
     ROLE_CHOICES = [
         ("admin", "Admin"),
         ("manager", "Manager"),
-        ("sales_representative", "SalesRepresentative"),
+        ("member", "Member"),
     ]
 
     workspace = models.ForeignKey(
@@ -49,13 +52,20 @@ class WorkspaceMember(TimeStampedModel):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="workspace_membership"
+        related_name="workspace_members"
     )
 
     role = models.CharField(
         max_length=20,
-        choices=ROLE_CHOICES,
-        default="sales_representative"
+        choices=WorkspaceRole.CHOICES,
+        default=WorkspaceRole.SALES
+    )
+
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_invite"
     )
 
     is_active = models.BooleanField(default=True)
@@ -66,3 +76,55 @@ class WorkspaceMember(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user} → {self.workspace} ({self.role})"
+    
+
+
+class WorkspaceInvite(TimeStampedModel):
+    ROLE_CHOICES = [
+        ("admin", "Admin"),
+        ("manager", "Manager"),
+        ("member", "Member"),
+    ]
+
+    workspace = models.ForeignKey(
+        "workspaces.Workspace",
+        on_delete=models.CASCADE,
+        related_name="invites"
+    )
+
+    email = models.EmailField()
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="sent_workspace_invites"
+    )
+
+    is_accepted = models.BooleanField(default=False)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+
+    expires_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "workspace_invite"
+        unique_together = ("workspace", "email")
+
+    def is_expired(self):
+        return timezone.now > self.expires_at
+
+    def save(self, *args, **kwargs):
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=48)
+        super().save(*args, **kwargs)
+
+    def mark_accepted(self):
+        self.is_accepted = True
+        self.accepted_at = timezone.now()
+        self.save(update_fields=["is_accepted", "accepted_at"])
+
+    def __str__(self):
+        return f"{self.email} → {self.workspace.name}"

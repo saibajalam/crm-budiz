@@ -23,7 +23,7 @@ class Company(TimeStampedModel):
     is_active = models.BooleanField(default=True)
 
     class Meta:
-        db_table = "Company"
+        db_table = "company"
 
     def save(self, *args, **kwargs):
         if not self.pk and not self.trial_ends_at:

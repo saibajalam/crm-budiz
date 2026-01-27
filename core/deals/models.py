@@ -29,7 +29,7 @@ class Deal(TimeStampedModel, SoftDeleteModel):
     )
 
     expected_close_date = models.DateField(null=True, blank=True)
-
+    display_number = models.PositiveIntegerField()
     assigned_to = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
@@ -42,8 +42,6 @@ class Deal(TimeStampedModel, SoftDeleteModel):
         "workspaces.Workspace",
         on_delete=models.CASCADE,
         related_name="deals",
-        null=True,
-        blank=True
     )
 
     notes = models.TextField(blank=True)
@@ -59,6 +57,7 @@ class Deal(TimeStampedModel, SoftDeleteModel):
 
     class Meta:
         db_table = "deals"
+        unique_together = ("workspace", "display_number")
 
     def __str__(self):
         return self.title

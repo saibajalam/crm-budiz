@@ -169,3 +169,6 @@ else:
 # EMAIL_HOST_USER = 'youremail@gmail.com'
 # EMAIL_HOST_PASSWORD = 'your_app_password'
 # DEFAULT_FROM_EMAIL = 'noreply@yourcrm.com'
+
+
+FRONTEND_URL = "http://127.0.0.1:8000/api/workspaces/invite/accept/"

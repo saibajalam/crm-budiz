@@ -1,9 +1,10 @@
 from rest_framework import serializers
 from .models import Lead, LeadActivity
+from common.counter import get_next_display_number
+from common.utils import format_display_number
 
 
 class CreateLeadSerializer(serializers.ModelSerializer):
-    # Optional file uploads
     image = serializers.ImageField(required=False, allow_null=True)
     document = serializers.FileField(required=False, allow_null=True)
 
@@ -22,12 +23,18 @@ class CreateLeadSerializer(serializers.ModelSerializer):
             "image",
             "document",
         ]
-        read_only_fields = ["score"]  # score can be managed internally
+        read_only_fields = ["score"]
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        return Lead.objects.create(**validated_data)
+        display_number = get_next_display_number(
+        validated_data["workspace"],
+            "lead",
+        )
+        validated_data["display_number"] = display_number
+        return super().create(validated_data)
 
+
+        
 
 class LeadUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -154,6 +161,7 @@ class LeadListSerializer(serializers.ModelSerializer):
 class LeadDetailSerializer(serializers.ModelSerializer):
 
     created_by = serializers.SerializerMethodField()
+    workspace = serializers.StringRelatedField()
 
     class Meta:
         model = Lead
@@ -171,6 +179,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "created_by",
+            "workspace",
         )
 
         read_only_fields = fields

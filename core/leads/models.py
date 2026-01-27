@@ -15,13 +15,13 @@ class Lead(TimeStampedModel, SoftDeleteModel):
     first_name = models.CharField(max_length=100)
     last_name = models.CharField(max_length=100)
     email = models.EmailField()
-    phone = models.CharField(max_length=20, blank=True)
+    phone = models.CharField(max_length=20, blank=True, unique=True)
 
     company = models.CharField(max_length=150, blank=True)
     job_title = models.CharField(max_length=150, blank=True)
     image = models.ImageField(upload_to="leads/images/", null=True, blank=True)
     document = models.FileField(upload_to="leads/documents/", null=True, blank=True)
-
+    display_number = models.PositiveIntegerField()
     status = models.CharField(
         max_length=20,
         choices=LEAD_STATUS_CHOICES,
@@ -49,8 +49,6 @@ class Lead(TimeStampedModel, SoftDeleteModel):
         "workspaces.Workspace",
         on_delete=models.CASCADE,
         related_name="leads",
-        null=True,
-        blank=True
     )
 
     objects = SoftDeleteManager()      # default
@@ -63,17 +61,18 @@ class Lead(TimeStampedModel, SoftDeleteModel):
             models.Index(fields=["status", "source"]),
         ]
         db_table = "leads"
+        unique_together = ("workspace", "display_number")
 
     def soft_delete(self):
         super().soft_delete()
 
-        # 🔁 Cascade to Lead Activities
+        # Cascade to Lead Activities
         self.activities.all().update(
             is_deleted=True,
             deleted_at=timezone.now()
         )
 
-        # 🔁 Cascade to Deals
+        # Cascade to Deals
         self.deals.all().update(
             is_deleted=True,
             deleted_at=timezone.now()
@@ -116,8 +115,6 @@ class LeadActivity(TimeStampedModel, SoftDeleteModel):
         "workspaces.Workspace",
         on_delete=models.CASCADE,
         related_name="activities",
-        null=True,
-        blank=True
     )
 
     activity_type = models.CharField(max_length=20, choices=ACTIVITY_TYPES)

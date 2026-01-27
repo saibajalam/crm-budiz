@@ -13,16 +13,38 @@ from .serializers import (
     DealAssignmentSerializer,
 )
 from subscriptions.permissions import HasActiveSubscription
-from .permissions import IsDealOwnerAssigneeOrAdmin
+from .permissions import CanAssignDeal
 from rest_framework.exceptions import PermissionDenied
+from workspaces.utils import get_user_workspace
+from django.shortcuts import get_object_or_404
+from workspaces.permissions import IsWorkspaceMember
+from common.utils import format_display_number
 
 
 class CreateDealAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
     def post(self, request):
+        workspace = get_user_workspace(request.user)
+
+        if not workspace:
+            return Response(
+                {
+                    "message": "No active workspace found",
+                    "data": None,
+                    "success": False,
+                    "error": True,
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         serializer = CreateDealSerializer(
-            data=request.data, context={"request": request}
+            data=request.data,
+            context={
+                "request": request,
+                "workspace": workspace,
+            },
         )
 
         if not serializer.is_valid():
@@ -37,7 +59,7 @@ class CreateDealAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        deal = serializer.save(created_by=request.user)
+        deal = serializer.save()
 
         response_serializer = DealDetailSerializer(deal, context={"request": request})
 
@@ -45,6 +67,7 @@ class CreateDealAPIView(APIView):
             {
                 "message": "Deal created successfully",
                 "data": response_serializer.data,
+                "formatted_number": format_display_number("DEAL", deal.display_number),
                 "success": True,
                 "error": None,
                 "status_code": status.HTTP_201_CREATED,
@@ -55,7 +78,7 @@ class CreateDealAPIView(APIView):
 
 class PipelineWiseDealListAPIView(ListAPIView):
     serializer_class = DealPipelineSerializer
-    permission_classes = [IsAuthenticated, HasActiveSubscription]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, CanAssignDeal]
 
     def get_queryset(self):
         stage = self.request.query_params.get("pipeline_stage")
@@ -82,9 +105,8 @@ class PipelineWiseDealListAPIView(ListAPIView):
         )
 
 
-
 class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription, IsDealOwnerAssigneeOrAdmin]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, CanAssignDeal]
     queryset = Deal.objects.all()
     lookup_url_kwarg = "deal_id"
 
@@ -144,7 +166,7 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
 
 
 class DealRestoreAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription, IsDealOwnerAssigneeOrAdmin]
+    permission_classes = [IsAuthenticated, HasActiveSubscription, CanAssignDeal]
 
     def post(self, request, deal_id):
         try:
@@ -161,12 +183,11 @@ class DealRestoreAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        permission = IsDealOwnerAssigneeOrAdmin()
+        permission = CanAssignDeal()
         if not permission.has_object_permission(request, self, deal):
             raise PermissionDenied("You do not have permission to restore this deal.")
 
         deal.restore()
-
 
         return Response(
             {
@@ -181,33 +202,30 @@ class DealRestoreAPIView(APIView):
 
 
 class DealAssignmentUpdateAPIView(APIView):
-    permission_classes = [IsAuthenticated, HasActiveSubscription, IsDealOwnerAssigneeOrAdmin]
+    permission_classes = [
+        IsAuthenticated,
+        HasActiveSubscription,
+        CanAssignDeal,
+    ]
 
     def patch(self, request, deal_id):
-        try:
-            deal = Deal.objects.get(id=deal_id)
-        except Deal.DoesNotExist:
-            return Response(
-                {
-                    "message": "Deal not found",
-                    "data": None,
-                    "success": False,
-                    "error": True,
-                    "status_code": status.HTTP_404_NOT_FOUND,
-                },
-                status=status.HTTP_404_NOT_FOUND,
-            )
+        deal = get_object_or_404(Deal, id=deal_id)
 
-        serializer = DealAssignmentSerializer(deal, data=request.data, partial=True)
+        self.check_object_permissions(request, deal)
+
+        serializer = DealAssignmentSerializer(
+            deal,
+            data=request.data,
+            partial=True,
+            context={"deal": deal},
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
 
-        # Return updated deal details
-        detail_serializer = DealDetailSerializer(deal, context={"request": request})
         return Response(
             {
                 "message": "Deal assignment updated successfully",
-                "data": detail_serializer.data,
+                "data": DealDetailSerializer(deal, context={"request": request}).data,
                 "success": True,
                 "error": None,
                 "status_code": status.HTTP_200_OK,

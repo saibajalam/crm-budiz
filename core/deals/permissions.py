@@ -1,30 +1,28 @@
 from rest_framework.permissions import BasePermission
+from workspaces.models import WorkspaceMember
 
 
-class IsDealOwnerAssigneeOrAdmin(BasePermission):
+class CanAssignDeal(BasePermission):
     """
-    Allow only:
+    Allow deal assignment only if:
+    - Workspace owner or admin
     - Deal creator
-    - Assigned user
-    - Admin / SuperAdmin / Manager
     """
 
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request, view, deal):
         user = request.user
 
         if not user or not user.is_authenticated:
             return False
 
-        # Role-based access
-        if user.is_admin_or_manager:
+        # Workspace-level role check
+        if WorkspaceMember.objects.filter(
+            workspace=deal.workspace,
+            user=user,
+            role__in=["owner", "admin"],
+            is_active=True,
+        ).exists():
             return True
 
-        # Deal creator
-        if obj.created_by_id == user.id:
-            return True
-
-        # Assigned user
-        if obj.assigned_to_id == user.id:
-            return True
-
-        return False
+        # Deal creator (still must be in same workspace implicitly)
+        return deal.created_by_id == user.id

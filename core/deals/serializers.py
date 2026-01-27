@@ -2,6 +2,9 @@ from rest_framework import serializers
 from .models import Deal
 from django.contrib.auth import get_user_model
 from common.serializers import SimpleUserSerializer
+from workspaces.models import WorkspaceMember
+from common.counter import get_next_display_number
+from common.utils import format_display_number
 
 User = get_user_model()
 
@@ -16,7 +19,12 @@ PIPELINE_STAGES = [
 
 
 class CreateDealSerializer(serializers.ModelSerializer):
-    assigned_to_id = serializers.IntegerField(required=False, write_only=True)
+    assigned_to = serializers.IntegerField(
+        required=False,
+        write_only=True
+    )
+    display_id = serializers.ReadOnlyField()
+
 
     class Meta:
         model = Deal
@@ -27,35 +35,52 @@ class CreateDealSerializer(serializers.ModelSerializer):
             "probability",
             "pipeline_stage",
             "expected_close_date",
-            "assigned_to_id",
+            "assigned_to",
             "notes",
-            "full_name",
         )
 
     def validate_probability(self, value):
-        if value < 0 or value > 100:
-            raise serializers.ValidationError("Probability must be between 0 and 100.")
+        if not 0 <= value <= 100:
+            raise serializers.ValidationError(
+                "Probability must be between 0 and 100."
+            )
         return value
 
-    def validate_assigned_to_id(self, value):
-        if not User.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Invalid team member.")
-        return value
+    def validate_assigned_to(self, value):
+        workspace = self.context["workspace"]
+
+        try:
+            member = WorkspaceMember.objects.get(
+                workspace=workspace,
+                user_id=value,
+                is_active=True,
+            )
+        except WorkspaceMember.DoesNotExist:
+            raise serializers.ValidationError(
+                "Assigned user is not a member of this workspace."
+            )
+
+        return member.user  # return User instance
+    
+    def get_formatted_number(self, obj):
+        return format_display_number("DEAL", obj.display_number)
 
     def create(self, validated_data):
-        assigned_to_id = validated_data.pop("assigned_to_id", None)
+        request = self.context["request"]
+        workspace = self.context["workspace"]
 
-        assigned_to = None
-        if assigned_to_id:
-            assigned_to = User.objects.get(id=assigned_to_id)
+        assigned_to = validated_data.pop("assigned_to", None)
 
-        deal = Deal.objects.create(
+        display_number = get_next_display_number(workspace, "deal")
+
+        return Deal.objects.create(
             **validated_data,
+            workspace=workspace,
+            display_number=display_number,
             assigned_to=assigned_to,
-            created_by=self.context["request"].user
+            created_by=request.user,
         )
 
-        return deal
 
 
 class DealDetailSerializer(serializers.ModelSerializer):
@@ -63,6 +88,7 @@ class DealDetailSerializer(serializers.ModelSerializer):
     pipeline_stage_display = serializers.CharField(
         source="get_pipeline_stage_display", read_only=True
     )
+    workspace = serializers.StringRelatedField()
 
     class Meta:
         model = Deal
@@ -75,8 +101,24 @@ class DealDetailSerializer(serializers.ModelSerializer):
             "expected_close_date",
             "assigned_to",
             "notes",
+            "workspace",
         ]
         read_only_fields = fields
+
+    def validate_assigned_to(self, user):
+        deal = self.instance  # IMPORTANT
+        workspace = deal.workspace
+
+        if not WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+            is_active=True,
+        ).exists():
+            raise serializers.ValidationError(
+                "You can only see deal_details of the same workspace."
+            )
+
+        return user
 
 
 class DealUpdateSerializer(serializers.ModelSerializer):
@@ -110,6 +152,21 @@ class DealUpdateSerializer(serializers.ModelSerializer):
         if value not in PIPELINE_STAGES:
             raise serializers.ValidationError("Invalid pipeline stage.")
         return value
+    
+    def validate_assigned_to(self, user):
+        deal = self.instance  # IMPORTANT
+        workspace = deal.workspace
+
+        if not WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+            is_active=True,
+        ).exists():
+            raise serializers.ValidationError(
+                "You can only update deals of the same workspace."
+            )
+
+        return user
 
 
 class DealPipelineSerializer(serializers.ModelSerializer):
@@ -129,26 +186,30 @@ class DealPipelineSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class DealAssignmentSerializer(serializers.ModelSerializer):
-    assigned_to_id = serializers.IntegerField(write_only=True)
+    assigned_to_id = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.all(),
+        write_only=True,
+        source="assigned_to",
+    )
 
     class Meta:
         model = Deal
         fields = ["assigned_to_id"]
 
-    def validate_assigned_to_id(self, value):
-        try:
-            user = User.objects.get(id=value)
-        except User.DoesNotExist:
-            raise serializers.ValidationError("Assigned user does not exist.")
-        return value
+    def validate_assigned_to_id(self, user):
+        deal = self.instance  # IMPORTANT
+        workspace = deal.workspace
 
-    def update(self, instance, validated_data):
-        user_id = validated_data.get("assigned_to_id")
-        if user_id:
-            from accounts.models import User
+        if not WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+            is_active=True,
+        ).exists():
+            raise serializers.ValidationError(
+                "You can only assign deals to members of the same workspace."
+            )
 
-            user = User.objects.get(id=user_id)
-            instance.assigned_to = user
-            instance.save()
-        return instance
+        return user
+
