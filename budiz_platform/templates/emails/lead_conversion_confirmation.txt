@@ -1,0 +1,39 @@
+LEAD CONVERSION CONFIRMED
+==========================
+
+CONGRATULATIONS!
+You have successfully converted a lead into a deal.
+
+ORIGINAL LEAD
+-------------
+Name: {{ lead.first_name }} {{ lead.last_name }}
+Email: {{ lead.email }}
+Company: {{ lead.company|default:"Not specified" }}
+Status: Now marked as "Converted"
+
+NEW DEAL CREATED
+----------------
+Title: {{ deal.title }}
+Value: ${{ deal.value|floatformat:2 }}
+Probability: {{ deal.probability }}%
+Pipeline Stage: {{ deal.get_pipeline_stage_display }}
+{% if deal.expected_close_date %}Expected Close Date: {{ deal.expected_close_date|date:"M d, Y" }}{% endif %}
+{% if deal.assigned_to %}Assigned To: {{ deal.assigned_to.get_full_name|default:deal.assigned_to.email }}{% endif %}
+
+Conversion completed on: {{ conversion_date|date:"M d, Y g:i A" }}
+Workspace: {{ workspace.name }}
+
+{% if deal.created_from_lead %}
+Activities Transferred: All lead activities have been converted to deal activities.
+{% endif %}
+
+Manage This Deal: {{ frontend_url }}deals/{{ deal.id }}
+
+Great work! This conversion brings us one step closer to closing the deal. Keep up the excellent sales performance!
+
+Best regards,
+Your CRM System
+
+---
+This is a confirmation of your lead conversion action.
+Workspace: {{ workspace.name }}

@@ -1,0 +1,37 @@
+LEAD CONVERTED TO DEAL
+========================
+
+Hello,
+
+{{ converted_by.get_full_name|default:converted_by.email }} has successfully converted a lead into a deal in workspace {{ workspace.name }}.
+
+LEAD INFORMATION
+----------------
+Name: {{ lead.first_name }} {{ lead.last_name }}
+Email: {{ lead.email }}
+Company: {{ lead.company|default:"Not specified" }}
+Phone: {{ lead.phone|default:"Not specified" }}
+Source: {{ lead.get_source_display }}
+Score: {{ lead.score }}
+
+DEAL INFORMATION
+----------------
+Title: {{ deal.title }}
+Value: ${{ deal.value|floatformat:2 }}
+Probability: {{ deal.probability }}%
+Pipeline Stage: {{ deal.get_pipeline_stage_display }}
+{% if deal.expected_close_date %}Expected Close Date: {{ deal.expected_close_date|date:"M d, Y" }}{% endif %}
+{% if deal.assigned_to %}Assigned To: {{ deal.assigned_to.get_full_name|default:deal.assigned_to.email }}{% endif %}
+
+Conversion Date: {{ conversion_date|date:"M d, Y g:i A" }}
+
+View Deal Details: {{ frontend_url }}deals/{{ deal.id }}
+
+This conversion represents a significant step forward in our sales pipeline. Let's work together to close this deal!
+
+Best regards,
+Your CRM System
+
+---
+This is an automated notification from your CRM system.
+Workspace: {{ workspace.name }}

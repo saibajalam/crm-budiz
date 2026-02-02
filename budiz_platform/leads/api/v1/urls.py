@@ -7,6 +7,7 @@ from .views import (
     LeadRestoreAPIView,
     LeadActivityRestoreAPIView,
     LeadActivityFeedAPIView,
+    LeadConversionAPIView,
 )
 
 urlpatterns = [
@@ -41,8 +42,13 @@ urlpatterns = [
         name="restore_activity",
     ),
     path(
-        "leads/activity-feed/<int:activity_id>/",
+        "leads/<int:lead_id>/activity-feed/",
         LeadActivityFeedAPIView.as_view(),
-        name="activity_feed",
+        name="lead_activity_feed",
+    ),
+    path(
+        "leads/<int:lead_id>/convert/",
+        LeadConversionAPIView.as_view(),
+        name="lead_convert",
     ),
 ]

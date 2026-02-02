@@ -28,6 +28,7 @@ class Lead(TimeStampedModel, SoftDeleteModel):
     )
 
     score = models.PositiveIntegerField(default=0)
+    is_converted = models.BooleanField(default=False)
 
     is_deleted = models.BooleanField(default=False)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -50,6 +51,8 @@ class Lead(TimeStampedModel, SoftDeleteModel):
             models.Index(fields=["first_name", "last_name"]),
             models.Index(fields=["email"]),
             models.Index(fields=["status", "source"]),
+            models.Index(fields=["workspace", "is_converted"]),
+            models.Index(fields=["workspace", "status"]),
         ]
         db_table = "leads"
         unique_together = ("workspace", "display_number")
@@ -115,6 +118,8 @@ class LeadActivity(TimeStampedModel, SoftDeleteModel):
     performed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
+
+    attachment = models.FileField(upload_to="lead-activities/", null=True, blank=True)
 
     objects = SoftDeleteManager()  # default
     all_objects = models.Manager()  # includes deleted lead_activities

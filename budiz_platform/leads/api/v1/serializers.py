@@ -227,27 +227,170 @@ class LeadActivityFeedSerializer(serializers.ModelSerializer):
     is_upcoming = serializers.SerializerMethodField()
     is_overdue = serializers.SerializerMethodField()
     is_completed = serializers.SerializerMethodField()
-    lead_title = serializers.CharField(source="lead.title", read_only=True)
+    lead_name = serializers.SerializerMethodField()
 
     class Meta:
-        models = LeadActivity
+        model = LeadActivity
         fields = [
             "id",
-            "title",
+            "subject",
             "due_date",
-            "status",
             "activity_type",
-            "lead_title",
+            "lead_name",
             "is_upcoming",
-            "Is_overdue",
+            "is_overdue",
             "is_completed",
         ]
 
-        def get_is_coming(self, obj):
-            return obj.due_date > timezone.now() and obj.status != "completed"
+    def get_lead_name(self, obj):
+        return f"{obj.lead.first_name} {obj.lead.last_name}"
 
-        def get_is_overdue(self, obj):
-            return obj.dee_date < timezone.now() and obj.status != "completed"
+    def get_is_upcoming(self, obj):
+        return obj.due_date > timezone.now() and not obj.is_completed
 
-        def get_is_completed(self, obj):
-            return obj.status == "completed"
+    def get_is_overdue(self, obj):
+        return obj.due_date < timezone.now() and not obj.is_completed
+
+    def get_is_completed(self, obj):
+        return obj.is_completed
+
+
+class LeadConversionSerializer(serializers.Serializer):
+    """
+    Serializer for converting a lead to a deal.
+    Validates business rules and creates the deal with transferred activities.
+    """
+
+    # Deal details (optional, with defaults)
+    title = serializers.CharField(max_length=255, required=False)
+    value = serializers.DecimalField(max_digits=12, decimal_places=2, required=False)
+    probability = serializers.IntegerField(required=False, min_value=0, max_value=100)
+    expected_close_date = serializers.DateField(required=False)
+    assigned_to = serializers.IntegerField(required=False)
+    notes = serializers.CharField(required=False, allow_blank=True)
+
+    # Internal fields for validation
+    lead = serializers.HiddenField(default=None)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set defaults for optional fields
+        if "data" in kwargs:
+            data = kwargs["data"].copy()
+            if "title" not in data or not data.get("title"):
+                # Generate default title from lead name
+                lead = kwargs.get("context", {}).get("lead")
+                if lead:
+                    data["title"] = f"Deal from {lead.first_name} {lead.last_name}"
+            if "value" not in data or not data.get("value"):
+                data["value"] = 0.00
+            if "probability" not in data or data.get("probability") is None:
+                data["probability"] = 50
+            kwargs["data"] = data
+
+    def validate_assigned_to(self, value):
+        """Validate that assigned user exists and is in the workspace"""
+        workspace = self.context.get("workspace")
+        if not workspace:
+            raise serializers.ValidationError("Workspace context required")
+
+        try:
+            from workspaces.models import WorkspaceMember
+
+            member = WorkspaceMember.objects.get(workspace=workspace, user_id=value)
+            return member.user
+        except WorkspaceMember.DoesNotExist:
+            raise serializers.ValidationError(
+                "Assigned user is not a member of this workspace"
+            )
+
+    def validate(self, attrs):
+        """Validate conversion business rules"""
+        lead = self.context.get("lead")
+        if not lead:
+            raise serializers.ValidationError("Lead context required")
+
+        # Check if lead can be converted
+        if lead.status != "qualified":
+            raise serializers.ValidationError(
+                "Only qualified leads can be converted to deals"
+            )
+
+        if lead.is_converted:
+            raise serializers.ValidationError("Lead has already been converted")
+
+        # Set defaults if not provided
+        if "title" not in attrs or not attrs["title"]:
+            attrs["title"] = f"Deal from {lead.first_name} {lead.last_name}"
+
+        if "value" not in attrs:
+            attrs["value"] = 0.00
+
+        if "probability" not in attrs:
+            attrs["probability"] = 50
+
+        return attrs
+
+    def create(self, validated_data):
+        """Create deal and transfer activities"""
+        from deals.models import Deal, DealActivity
+        from common.counter import get_next_display_number
+        from common.email_utils import (
+            send_lead_conversion_notification,
+            send_lead_conversion_confirmation,
+        )
+
+        lead = self.context["lead"]
+        workspace = self.context["workspace"]
+        user = self.context["request"].user
+
+        # Create the deal
+        deal_data = {
+            "title": validated_data["title"],
+            "value": validated_data["value"],
+            "probability": validated_data["probability"],
+            "expected_close_date": validated_data.get("expected_close_date"),
+            "assigned_to": validated_data.get("assigned_to"),
+            "notes": validated_data.get("notes", ""),
+            "workspace": workspace,
+            "created_by": user,
+            "created_from_lead": lead,
+            "display_number": get_next_display_number(workspace, "deal"),
+        }
+
+        deal = Deal.objects.create(**deal_data)
+
+        # Transfer lead activities to deal activities
+        lead_activities = lead.activities.filter(is_deleted=False)
+        for lead_activity in lead_activities:
+            DealActivity.objects.create(
+                title=lead_activity.subject,
+                description=lead_activity.description,
+                due_date=lead_activity.due_date,
+                status="pending",  # Reset status for new deal
+                activity_type=lead_activity.activity_type,
+                assigned_to=lead_activity.performed_by or user,
+                deal=deal,
+                workspace=workspace,
+                created_at=lead_activity.created_at,  # Preserve original creation time
+            )
+
+        # Mark lead as converted
+        lead.status = "converted"
+        lead.is_converted = True
+        lead.save(update_fields=["status", "is_converted"])
+
+        # Send email notifications
+        try:
+            # Send notification to other workspace members
+            send_lead_conversion_notification(lead, deal, user)
+            # Send confirmation to the user who performed the conversion
+            send_lead_conversion_confirmation(lead, deal, user)
+        except Exception as e:
+            # Log email failure but don't fail the conversion
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Failed to send conversion emails: {e}")
+
+        return deal

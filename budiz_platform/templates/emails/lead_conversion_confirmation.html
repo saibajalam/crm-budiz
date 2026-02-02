@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background-color: #2196F3;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .deal-info {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .lead-info {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .success {
+            background-color: #e8f5e8;
+            border: 1px solid #4CAF50;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ Lead Conversion Confirmed!</h1>
+        </div>
+
+        <div class="content">
+            <div class="success">
+                <h3>🎉 Congratulations!</h3>
+                <p>You have successfully converted a lead into a deal.</p>
+            </div>
+
+            <div class="lead-info">
+                <h3>📋 Original Lead</h3>
+                <p><strong>Name:</strong> {{ lead.first_name }} {{ lead.last_name }}</p>
+                <p><strong>Email:</strong> {{ lead.email }}</p>
+                <p><strong>Company:</strong> {{ lead.company|default:"Not specified" }}</p>
+                <p><strong>Status:</strong> Now marked as "Converted"</p>
+            </div>
+
+            <div class="deal-info">
+                <h3>💼 New Deal Created</h3>
+                <p><strong>Title:</strong> {{ deal.title }}</p>
+                <p><strong>Value:</strong> ${{ deal.value|floatformat:2 }}</p>
+                <p><strong>Probability:</strong> {{ deal.probability }}%</p>
+                <p><strong>Pipeline Stage:</strong> {{ deal.get_pipeline_stage_display }}</p>
+                {% if deal.expected_close_date %}
+                <p><strong>Expected Close Date:</strong> {{ deal.expected_close_date|date:"M d, Y" }}</p>
+                {% endif %}
+                {% if deal.assigned_to %}
+                <p><strong>Assigned To:</strong> {{ deal.assigned_to.get_full_name|default:deal.assigned_to.email }}</p>
+                {% endif %}
+            </div>
+
+            <p><strong>Conversion completed on:</strong> {{ conversion_date|date:"M d, Y g:i A" }}</p>
+            <p><strong>Workspace:</strong> {{ workspace.name }}</p>
+
+            {% if deal.created_from_lead %}
+            <p><strong>Activities Transferred:</strong> All lead activities have been converted to deal activities.</p>
+            {% endif %}
+
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="{{ frontend_url }}deals/{{ deal.id }}" class="button">Manage This Deal</a>
+            </div>
+
+            <p>Great work! This conversion brings us one step closer to closing the deal. Keep up the excellent sales
+                performance!</p>
+
+            <p>Best regards,<br>Your CRM System</p>
+        </div>
+
+        <div class="footer">
+            <p>This is a confirmation of your lead conversion action.</p>
+            <p>Workspace: {{ workspace.name }}</p>
+        </div>
+    </div>
+</body>
+
+</html>

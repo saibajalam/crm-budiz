@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "common.apps.CommonConfig",
     "deals.apps.DealsConfig",
     "workspaces.apps.WorkspacesConfig",
+    "analytics.apps.AnalyticsConfig",
 ]
 
 MIDDLEWARE = [

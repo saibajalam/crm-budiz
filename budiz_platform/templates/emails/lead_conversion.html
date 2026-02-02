@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .content {
+            padding: 20px;
+            background-color: #f9f9f9;
+        }
+
+        .deal-info {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #4CAF50;
+        }
+
+        .lead-info {
+            background-color: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-left: 4px solid #2196F3;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 12px;
+        }
+
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Lead Converted to Deal!</h1>
+        </div>
+
+        <div class="content">
+            <p>Hello,</p>
+
+            <p><strong>{{ converted_by.get_full_name|default:converted_by.email }}</strong> has successfully converted a
+                lead into a deal in workspace <strong>{{ workspace.name }}</strong>.</p>
+
+            <div class="lead-info">
+                <h3>📋 Lead Information</h3>
+                <p><strong>Name:</strong> {{ lead.first_name }} {{ lead.last_name }}</p>
+                <p><strong>Email:</strong> {{ lead.email }}</p>
+                <p><strong>Company:</strong> {{ lead.company|default:"Not specified" }}</p>
+                <p><strong>Phone:</strong> {{ lead.phone|default:"Not specified" }}</p>
+                <p><strong>Source:</strong> {{ lead.get_source_display }}</p>
+                <p><strong>Score:</strong> {{ lead.score }}</p>
+            </div>
+
+            <div class="deal-info">
+                <h3>💼 Deal Information</h3>
+                <p><strong>Title:</strong> {{ deal.title }}</p>
+                <p><strong>Value:</strong> ${{ deal.value|floatformat:2 }}</p>
+                <p><strong>Probability:</strong> {{ deal.probability }}%</p>
+                <p><strong>Pipeline Stage:</strong> {{ deal.get_pipeline_stage_display }}</p>
+                {% if deal.expected_close_date %}
+                <p><strong>Expected Close Date:</strong> {{ deal.expected_close_date|date:"M d, Y" }}</p>
+                {% endif %}
+                {% if deal.assigned_to %}
+                <p><strong>Assigned To:</strong> {{ deal.assigned_to.get_full_name|default:deal.assigned_to.email }}</p>
+                {% endif %}
+            </div>
+
+            <p><strong>Conversion Date:</strong> {{ conversion_date|date:"M d, Y g:i A" }}</p>
+
+            <div style="text-align: center; margin: 20px 0;">
+                <a href="{{ frontend_url }}deals/{{ deal.id }}" class="button">View Deal Details</a>
+            </div>
+
+            <p>This conversion represents a significant step forward in our sales pipeline. Let's work together to close
+                this deal!</p>
+
+            <p>Best regards,<br>Your CRM System</p>
+        </div>
+
+        <div class="footer">
+            <p>This is an automated notification from your CRM system.</p>
+            <p>Workspace: {{ workspace.name }}</p>
+        </div>
+    </div>
+</body>
+
+</html>

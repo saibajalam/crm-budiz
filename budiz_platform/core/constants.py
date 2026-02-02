@@ -2,6 +2,7 @@ LEAD_STATUS_CHOICES = (
     ("new", "New"),
     ("contacted", "Contacted"),
     ("qualified", "Qualified"),
+    ("converted", "Converted"),
     ("unqualified", "Unqualified"),
     ("lost", "Lost"),
 )

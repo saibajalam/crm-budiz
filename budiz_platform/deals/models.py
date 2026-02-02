@@ -52,12 +52,24 @@ class Deal(TimeStampedModel, SoftDeleteModel):
         User, on_delete=models.SET_NULL, null=True, related_name="created_deals"
     )
 
+    created_from_lead = models.ForeignKey(
+        "leads.Lead",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="converted_deals",
+    )
+
     objects = SoftDeleteManager()  # default
     all_objects = models.Manager()  # includes deleted deals
 
     class Meta:
         db_table = "deals"
         unique_together = ("workspace", "display_number")
+        indexes = [
+            models.Index(fields=["workspace", "pipeline_stage"]),
+            models.Index(fields=["created_from_lead"]),
+        ]
 
     def __str__(self):
         return self.title

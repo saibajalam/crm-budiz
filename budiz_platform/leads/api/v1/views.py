@@ -48,7 +48,8 @@ class LeadListCreateAPIView(ListCreateAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        return Lead.objects.filter(workspace_members_user=self.request.user)
+        workspace = get_user_workspace(self.request.user)
+        return Lead.objects.filter(workspace=workspace)
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -89,23 +90,11 @@ class LeadListCreateAPIView(ListCreateAPIView):
             created_by=request.user,
         )
 
+        response_serializer = LeadDetailSerializer(lead, context={"request": request})
         return Response(
             {
                 "message": "Lead created successfully",
-                "data": {
-                    "id": lead.id,
-                    "display_number": lead.display_number,
-                    "formatted_number": format_display_number(
-                        "LEAD", lead.display_number
-                    ),
-                    "first_name": lead.first_name,
-                    "last_name": lead.last_name,
-                    "email": lead.email,
-                    "status": lead.status,
-                    "source": lead.source,
-                    "workspace_id": lead.workspace_id,
-                    "created_by_id": lead.created_by_id,
-                },
+                "data": response_serializer.data,
                 "success": True,
                 "error": None,
                 "status_code": status.HTTP_201_CREATED,
@@ -280,10 +269,14 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
             }
         )
 
-    def perform_create(self, serializer):
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
         lead = get_object_or_404(Lead, id=self.kwargs["lead_id"])
         activity = LeadActivity.objects.create(
             lead=lead,
+            workspace=lead.workspace,
             activity_type=serializer.validated_data["activity_type"],
             priority=serializer.validated_data.get("priority", "medium"),
             subject=serializer.validated_data["subject"],
@@ -292,19 +285,22 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
             attachment=serializer.validated_data.get("attachment"),
             performed_by=self.request.user,
         )
+
         # Update lead score
         update_lead_score(lead, activity.activity_type)
-        serializer.instance = (
-            activity  # required if you want serializer.instance for later
+
+        # Return activity data using the list serializer
+        response_serializer = LeadActivityListSerializer(
+            activity, context={"request": request}
         )
 
         return Response(
             {
                 "success": True,
                 "message": "Activity created successfully",
-                "data": {"activity_id": activity.id, "lead_score": lead.score},
+                "data": response_serializer.data,
                 "error": None,
-                "status": status.HTTP_201_CREATED,
+                "status_code": status.HTTP_201_CREATED,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -352,13 +348,14 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         for file in attachments:
             LeadActivityAttachment.objects.create(activity=activity, file=file)
 
+        response_serializer = LeadActivityListSerializer(
+            activity, context={"request": request}
+        )
+
         return Response(
             {
                 "message": "Lead activity updated successfully",
-                "data": {
-                    "activity_id": activity.id,
-                    "attachments_added": len(attachments),
-                },
+                "data": response_serializer.data,
                 "success": True,
                 "error": None,
                 "status_code": status.HTTP_200_OK,
@@ -446,19 +443,134 @@ class LeadActivityFeedAPIView(ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        workspace = self.get_user_workspace()
-        queryset = LeadActivity.objects.filter(deal__workspace=workspace)
+        workspace = get_user_workspace(user)
+        if not workspace:
+            return LeadActivity.objects.none()
+
+        lead_id = self.kwargs.get("lead_id")
+        queryset = LeadActivity.objects.filter(
+            lead_id=lead_id, lead__workspace=workspace
+        )
 
         category = self.request.query_params.get("category")
-        if category == "upoming":
-            queryset = queryset.filter(
-                due_date__gt=timezone.now, status__in=["pending", "cancelled"]
-            )
+        if category == "upcoming":
+            queryset = queryset.filter(due_date__gt=timezone.now(), is_completed=False)
         elif category == "overdue":
-            queryset = queryset.filter(
-                due_dat__lt=timezone.now, status__in=["pending", "cancelled"]
-            )
+            queryset = queryset.filter(due_date__lt=timezone.now(), is_completed=False)
         elif category == "completed":
-            queryset = queryset.filter(status="completed")
+            queryset = queryset.filter(is_completed=True)
 
         return queryset.order_by("-due_date")
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(
+            {
+                "success": True,
+                "data": serializer.data,
+                "message": "Activities feed retrieved successfully",
+                "status_code": status.HTTP_200_OK,
+            }
+        )
+
+
+# -------------------
+# Lead Conversion
+# -------------------
+class LeadConversionAPIView(APIView):
+    """
+    Convert a qualified lead to a deal.
+    POST /api/v1/leads/{lead_id}/convert/
+    """
+
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
+
+    def post(self, request, lead_id):
+        # Get workspace
+        workspace = get_user_workspace(request.user)
+        if not workspace:
+            return Response(
+                {
+                    "message": "No active workspace found",
+                    "data": None,
+                    "success": False,
+                    "error": True,
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Get and validate lead
+        try:
+            lead = Lead.objects.get(id=lead_id, workspace=workspace, is_deleted=False)
+        except Lead.DoesNotExist:
+            return Response(
+                {
+                    "message": "Lead not found or access denied",
+                    "data": None,
+                    "success": False,
+                    "error": True,
+                    "status_code": status.HTTP_404_NOT_FOUND,
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Use the conversion serializer
+        from .serializers import LeadConversionSerializer
+
+        serializer = LeadConversionSerializer(
+            data=request.data,
+            context={"request": request, "workspace": workspace, "lead": lead},
+        )
+
+        if serializer.is_valid():
+            try:
+                deal = serializer.save()
+
+                # Return success response with deal details
+                return Response(
+                    {
+                        "message": f"Lead '{lead.first_name} {lead.last_name}' successfully converted to deal",
+                        "data": {
+                            "deal_id": deal.id,
+                            "deal_title": deal.title,
+                            "lead_id": lead.id,
+                            "activities_transferred": lead.activities.filter(
+                                is_deleted=False
+                            ).count(),
+                        },
+                        "success": True,
+                        "error": False,
+                        "status_code": status.HTTP_201_CREATED,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+
+            except Exception as e:
+                return Response(
+                    {
+                        "message": f"Conversion failed: {str(e)}",
+                        "data": None,
+                        "success": False,
+                        "error": True,
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        return Response(
+            {
+                "message": "Validation failed",
+                "data": serializer.errors,
+                "success": False,
+                "error": True,
+                "status_code": status.HTTP_400_BAD_REQUEST,
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
