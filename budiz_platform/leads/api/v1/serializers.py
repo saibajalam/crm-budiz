@@ -3,6 +3,14 @@ from ...models import Lead, LeadActivity
 from common.counter import get_next_display_number
 from common.utils import format_display_number
 from django.utils import timezone
+from deals.models import Deal, DealActivity
+from common.email_utils import (
+    send_lead_conversion_notification,
+    send_lead_conversion_confirmation,
+)
+from workspaces.models import WorkspaceMember
+from decimal import Decimal
+from django.db import transaction
 
 
 class CreateLeadSerializer(serializers.ModelSerializer):
@@ -283,7 +291,7 @@ class LeadConversionSerializer(serializers.Serializer):
                 if lead:
                     data["title"] = f"Deal from {lead.first_name} {lead.last_name}"
             if "value" not in data or not data.get("value"):
-                data["value"] = 0.00
+                data["value"] = Decimal("0.00")
             if "probability" not in data or data.get("probability") is None:
                 data["probability"] = 50
             kwargs["data"] = data
@@ -324,7 +332,7 @@ class LeadConversionSerializer(serializers.Serializer):
             attrs["title"] = f"Deal from {lead.first_name} {lead.last_name}"
 
         if "value" not in attrs:
-            attrs["value"] = 0.00
+            attrs["value"] = Decimal("0.00")
 
         if "probability" not in attrs:
             attrs["probability"] = 50
@@ -333,12 +341,6 @@ class LeadConversionSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         """Create deal and transfer activities"""
-        from deals.models import Deal, DealActivity
-        from common.counter import get_next_display_number
-        from common.email_utils import (
-            send_lead_conversion_notification,
-            send_lead_conversion_confirmation,
-        )
 
         lead = self.context["lead"]
         workspace = self.context["workspace"]
@@ -358,7 +360,8 @@ class LeadConversionSerializer(serializers.Serializer):
             "display_number": get_next_display_number(workspace, "deal"),
         }
 
-        deal = Deal.objects.create(**deal_data)
+        with transaction.atomic():
+            deal = Deal.objects.create(**deal_data)
 
         # Transfer lead activities to deal activities
         lead_activities = lead.activities.filter(is_deleted=False)
@@ -381,16 +384,16 @@ class LeadConversionSerializer(serializers.Serializer):
         lead.save(update_fields=["status", "is_converted"])
 
         # Send email notifications
-        try:
-            # Send notification to other workspace members
-            send_lead_conversion_notification(lead, deal, user)
-            # Send confirmation to the user who performed the conversion
-            send_lead_conversion_confirmation(lead, deal, user)
-        except Exception as e:
-            # Log email failure but don't fail the conversion
-            import logging
+        # try:
+        #     # Send notification to other workspace members
+        #     send_lead_conversion_notification(lead, deal, user)
+        #     # Send confirmation to the user who performed the conversion
+        #     send_lead_conversion_confirmation(lead, deal, user)
+        # except Exception as e:
+        #     # Log email failure but don't fail the conversion
+        #     import logging
 
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Failed to send conversion emails: {e}")
+        #     logger = logging.getLogger(__name__)
+        #     logger.warning(f"Failed to send conversion emails: {e}")
 
         return deal

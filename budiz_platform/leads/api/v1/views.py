@@ -108,7 +108,7 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         IsAuthenticated,
         HasActiveSubscription,
         CanDeleteLead,
-        IsWorkspaceOwnerOrAdmin,
+        LeadAccessPermission,
     ]
     queryset = Lead.objects.all()
     lookup_url_kwarg = "lead_id"

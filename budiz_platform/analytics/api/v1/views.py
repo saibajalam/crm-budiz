@@ -10,7 +10,8 @@ from datetime import timedelta
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 
-from ...models import DealAnalytics, UserAnalytics
+from leads.models import Lead
+from deals.models import Deal
 from .serializers import (
     DealAnalyticsSerializer,
     UserAnalyticsSerializer,
@@ -19,287 +20,180 @@ from .serializers import (
 from subscriptions.permissions import HasActiveSubscription
 from workspaces.utils import get_user_workspace
 from workspaces.permissions import IsWorkspaceMember
+from django.db.models.functions import TruncDate
 
 
 class AnalyticsDashboardAPIView(APIView):
-    """
-    Dashboard view providing summary analytics for the user's workspace
-    """
-
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
     def get(self, request):
         workspace = get_user_workspace(request.user)
         if not workspace:
-            return Response(
-                {"error": "No active workspace found"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            return Response({"error": "No active workspace"}, status=400)
 
-        # Get date range (default to last 30 days)
         days = int(request.query_params.get("days", 30))
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
 
-        # Current period analytics
-        current_deal_stats = DealAnalytics.objects.filter(
-            workspace=workspace, date__range=[start_date, end_date]
-        ).aggregate(
-            total_deals=Sum("total_deals"),
-            total_pipeline_value=Sum("pipeline_value"),
-            won_deals=Sum("won_deals"),
-            won_value=Sum("won_value"),
-            lost_deals=Sum("lost_deals"),
-            leads_converted=Sum("leads_converted"),
-            total_qualified_leads=Sum("total_leads_qualified"),
+        deals = Deal.objects.filter(
+            workspace=workspace,
+            created_at__date__range=[start_date, end_date],
         )
 
-        current_user_stats = UserAnalytics.objects.filter(
-            workspace=workspace, date__range=[start_date, end_date]
-        ).aggregate(
-            active_users=Count("user", distinct=True),
-            total_activities=Sum("activities_completed"),
-            total_deals_created=Sum("deals_created"),
-            total_revenue=Sum("revenue_generated"),
+        leads = Lead.objects.filter(
+            workspace=workspace,
+            created_at__date__range=[start_date, end_date],
         )
 
-        # Previous period for comparison
-        prev_start_date = start_date - timedelta(days=days)
-        prev_end_date = start_date
-
-        prev_deal_stats = DealAnalytics.objects.filter(
-            workspace=workspace, date__range=[prev_start_date, prev_end_date]
-        ).aggregate(
-            prev_won_value=Sum("won_value"), prev_total_deals=Sum("total_deals")
+        deal_stats = deals.aggregate(
+            total_deals=Count("id"),
+            pipeline_value=Sum("value", filter=Q(status="open")),
+            won_deals=Count("id", filter=Q(status="won")),
+            won_value=Sum("value", filter=Q(status="won")),
+            lost_deals=Count("id", filter=Q(status="lost")),
         )
 
-        # Calculate metrics
-        total_deals = current_deal_stats.get("total_deals") or 0
-        won_deals = current_deal_stats.get("won_deals") or 0
-        won_value = current_deal_stats.get("won_value") or 0
-        prev_won_value = prev_deal_stats.get("prev_won_value") or 0
-        leads_converted = current_deal_stats.get("leads_converted") or 0
-        total_qualified_leads = current_deal_stats.get("total_qualified_leads") or 0
+        lead_stats = leads.aggregate(
+            total_qualified=Count("id", filter=Q(status="qualified")),
+            converted=Count("id", filter=Q(is_converted=True)),
+        )
 
-        win_rate = (won_deals / total_deals * 100) if total_deals > 0 else 0
+        total_deals = deal_stats["total_deals"] or 0
+        won_deals = deal_stats["won_deals"] or 0
+
+        win_rate = (won_deals / total_deals * 100) if total_deals else 0
         conversion_rate = (
-            (leads_converted / total_qualified_leads * 100)
-            if total_qualified_leads > 0
+            (lead_stats["converted"] / lead_stats["total_qualified"] * 100)
+            if lead_stats["total_qualified"]
             else 0
         )
 
-        # Growth calculations
-        revenue_growth = (
-            ((won_value - prev_won_value) / prev_won_value * 100)
-            if prev_won_value > 0
-            else 0
-        )
-
-        active_users = current_user_stats.get("active_users") or 0
-        total_deals_created = current_user_stats.get("total_deals_created") or 0
-        avg_deals_per_user = (
-            (total_deals_created / active_users) if active_users > 0 else 0
-        )
-
-        summary_data = {
+        data = {
             "total_deals": total_deals,
-            "total_pipeline_value": current_deal_stats.get("total_pipeline_value") or 0,
+            "total_pipeline_value": deal_stats["pipeline_value"] or 0,
             "won_deals": won_deals,
-            "won_value": won_value,
-            "lost_deals": current_deal_stats.get("lost_deals") or 0,
+            "won_value": deal_stats["won_value"] or 0,
+            "lost_deals": deal_stats["lost_deals"] or 0,
             "win_rate": round(win_rate, 2),
-            "leads_converted": leads_converted,
+            "leads_converted": lead_stats["converted"] or 0,
             "conversion_rate": round(conversion_rate, 2),
-            "total_qualified_leads": total_qualified_leads,
-            "active_users": active_users,
-            "total_activities": current_user_stats.get("total_activities") or 0,
-            "avg_deals_per_user": round(avg_deals_per_user, 2),
-            "revenue_growth": round(revenue_growth, 2),
+            "total_qualified_leads": lead_stats["total_qualified"] or 0,
         }
 
-        serializer = AnalyticsSummarySerializer(summary_data)
-        return Response(
-            {
-                "success": True,
-                "message": f"Analytics summary for last {days} days",
-                "data": serializer.data,
-            }
-        )
+        return Response({"success": True, "data": data})
 
 
-class DealAnalyticsListAPIView(ListAPIView):
-    """
-    List deal analytics with filtering and ordering
-    """
-
+class DealAnalyticsListAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
-    serializer_class = DealAnalyticsSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["date"]
-    ordering_fields = ["date", "total_deals", "total_value", "won_deals", "won_value"]
-    ordering = ["-date"]
 
-    def get_queryset(self):
-        workspace = get_user_workspace(self.request.user)
-        if not workspace:
-            return DealAnalytics.objects.none()
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
 
-        queryset = DealAnalytics.objects.filter(workspace=workspace)
+        start_date = request.query_params.get("start_date")
+        end_date = request.query_params.get("end_date")
 
-        # Date range filtering
-        start_date = self.request.query_params.get("start_date")
-        end_date = self.request.query_params.get("end_date")
+        qs = Deal.objects.filter(workspace=workspace)
 
         if start_date:
-            queryset = queryset.filter(date__gte=start_date)
+            qs = qs.filter(created_at__date__gte=start_date)
         if end_date:
-            queryset = queryset.filter(date__lte=end_date)
+            qs = qs.filter(created_at__date__lte=end_date)
 
-        return queryset
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {
-                "success": True,
-                "message": "Deal analytics retrieved successfully",
-                "data": serializer.data,
-                "count": len(serializer.data),
-            }
+        data = (
+            qs.annotate(date=TruncDate("created_at"))
+            .values("date")
+            .annotate(
+                total_deals=Count("id"),
+                total_value=Sum("value"),
+                won_deals=Count("id", filter=Q(status="won")),
+                won_value=Sum("value", filter=Q(status="won")),
+            )
+            .order_by("-date")
         )
 
+        return Response({"success": True, "data": data})
 
-class UserAnalyticsListAPIView(ListAPIView):
-    """
-    List user analytics with filtering and ordering
-    """
 
+class UserAnalyticsListAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
-    serializer_class = UserAnalyticsSerializer
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    filterset_fields = ["user", "date"]
-    ordering_fields = [
-        "date",
-        "deals_created",
-        "deals_closed",
-        "revenue_generated",
-        "activities_completed",
-    ]
-    ordering = ["-date"]
 
-    def get_queryset(self):
-        workspace = get_user_workspace(self.request.user)
-        if not workspace:
-            return UserAnalytics.objects.none()
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+        days = int(request.query_params.get("days", 30))
 
-        queryset = UserAnalytics.objects.filter(workspace=workspace)
+        start_date = timezone.now().date() - timedelta(days=days)
 
-        # Date range filtering
-        start_date = self.request.query_params.get("start_date")
-        end_date = self.request.query_params.get("end_date")
-
-        if start_date:
-            queryset = queryset.filter(date__gte=start_date)
-        if end_date:
-            queryset = queryset.filter(date__lte=end_date)
-
-        return queryset.select_related("user")
-
-    def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(
-            {
-                "success": True,
-                "message": "User analytics retrieved successfully",
-                "data": serializer.data,
-                "count": len(serializer.data),
-            }
+        data = (
+            Deal.objects.filter(
+                workspace=workspace,
+                created_at__date__gte=start_date,
+                assigned_to__isnull=False,
+            )
+            .values("assigned_to", "assigned_to__email")
+            .annotate(
+                deals_created=Count("id"),
+                deals_won=Count("id", filter=Q(status="won")),
+                revenue=Sum("value", filter=Q(status="won")),
+            )
         )
 
+        return Response({"success": True, "data": data})
 
-class UserAnalyticsDetailAPIView(RetrieveAPIView):
-    """
-    Get detailed analytics for a specific user
-    """
 
-    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
-    serializer_class = UserAnalyticsSerializer
+# class UserAnalyticsDetailAPIView(RetrieveAPIView):
+#     """
+#     Get detailed analytics for a specific user
+#     """
 
-    def get_queryset(self):
-        workspace = get_user_workspace(self.request.user)
-        if not workspace:
-            return UserAnalytics.objects.none()
+#     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
+#     serializer_class = UserAnalyticsSerializer
 
-        return UserAnalytics.objects.filter(workspace=workspace).select_related("user")
+#     def get_queryset(self):
+#         workspace = get_user_workspace(self.request.user)
+#         if not workspace:
+#             return UserAnalytics.objects.none()
 
-    def retrieve(self, request, *args, **kwargs):
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(
-            {
-                "success": True,
-                "message": "User analytics retrieved successfully",
-                "data": serializer.data,
-            }
-        )
+#         return UserAnalytics.objects.filter(workspace=workspace).select_related("user")
+
+#     def retrieve(self, request, *args, **kwargs):
+#         instance = self.get_object()
+#         serializer = self.get_serializer(instance)
+#         return Response(
+#             {
+#                 "success": True,
+#                 "message": "User analytics retrieved successfully",
+#                 "data": serializer.data,
+#             }
+#         )
 
 
 class AnalyticsTrendsAPIView(APIView):
-    """
-    Get analytics trends over time
-    """
-
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
     def get(self, request):
         workspace = get_user_workspace(request.user)
-        if not workspace:
-            return Response(
-                {"error": "No active workspace found"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Get parameters
         days = int(request.query_params.get("days", 30))
-        metric = request.query_params.get(
-            "metric", "won_value"
-        )  # won_value, total_deals, etc.
+        metric = request.query_params.get("metric", "won_value")
 
-        end_date = timezone.now().date()
-        start_date = end_date - timedelta(days=days)
+        start_date = timezone.now().date() - timedelta(days=days)
 
-        # Get daily data
-        deal_data = (
-            DealAnalytics.objects.filter(
-                workspace=workspace, date__range=[start_date, end_date]
+        qs = (
+            Deal.objects.filter(
+                workspace=workspace,
+                created_at__date__gte=start_date,
             )
-            .order_by("date")
-            .values("date", metric)
+            .annotate(date=TruncDate("created_at"))
+            .values("date")
         )
 
-        # Format for frontend charts
-        trends_data = []
-        for item in deal_data:
-            trends_data.append(
-                {"date": item["date"].isoformat(), "value": item[metric] or 0}
-            )
+        if metric == "won_value":
+            qs = qs.annotate(value=Sum("value", filter=Q(status="won")))
+        elif metric == "total_deals":
+            qs = qs.annotate(value=Count("id"))
 
         return Response(
             {
                 "success": True,
-                "message": f"{metric.replace('_', ' ').title()} trends for last {days} days",
-                "data": {"metric": metric, "trends": trends_data, "period_days": days},
+                "data": list(qs.order_by("date")),
             }
         )
