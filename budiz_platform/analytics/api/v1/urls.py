@@ -29,7 +29,7 @@ urlpatterns = [
         name="user_analytics_list",
     ),
     path(
-        "analytics/users/<int:pk>/",
+        "analytics/users/<int:user_id>/",
         UserAnalyticsDetailAPIView.as_view(),
         name="user_analytics_detail",
     ),

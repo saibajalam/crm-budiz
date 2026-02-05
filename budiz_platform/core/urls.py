@@ -28,6 +28,7 @@ urlpatterns = [
     path("api/", include("deals.api.v1.urls")),
     path("api/", include("workspaces.api.v1.urls")),
     path("api/", include("analytics.api.v1.urls")),
+    path("api/", include("forms.api.v1.urls")),
 ]
 
 

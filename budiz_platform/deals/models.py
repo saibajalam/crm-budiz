@@ -67,8 +67,13 @@ class Deal(TimeStampedModel, SoftDeleteModel):
         db_table = "deals"
         unique_together = ("workspace", "display_number")
         indexes = [
+            models.Index(fields=["workspace"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["assigned_to"]),
             models.Index(fields=["workspace", "pipeline_stage"]),
             models.Index(fields=["created_from_lead"]),
+            models.Index(fields=["workspace", "created_at"]),
+            models.Index(fields=["workspace", "assigned_to"]),
         ]
 
     def __str__(self):
@@ -122,3 +127,10 @@ class DealActivity(TimeStampedModel, SoftDeleteModel):
     deleted_at = models.DateTimeField(null=True, blank=True)
     objects = SoftDeleteManager()
     all_objects = models.Manager()
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["workspace"]),
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["workspace", "created_at"]),
+        ]

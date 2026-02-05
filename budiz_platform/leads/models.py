@@ -50,6 +50,8 @@ class Lead(TimeStampedModel, SoftDeleteModel):
         indexes = [
             models.Index(fields=["first_name", "last_name"]),
             models.Index(fields=["email"]),
+            models.Index(fields=["is_converted"]),
+            models.Index(fields=["workspace", "created_at"]),
             models.Index(fields=["status", "source"]),
             models.Index(fields=["workspace", "is_converted"]),
             models.Index(fields=["workspace", "status"]),
@@ -129,6 +131,7 @@ class LeadActivity(TimeStampedModel, SoftDeleteModel):
         db_table = "lead_activity"
 
         indexes = [
+            models.Index(fields=["is_completed"]),
             models.Index(fields=["workspace", "due_date"]),
             models.Index(fields=["workspace", "is_completed"]),
             models.Index(fields=["workspace", "created_at"]),
