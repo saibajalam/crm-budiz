@@ -114,6 +114,7 @@ class FormSubmission(models.Model):
         db_table = "form_submissions"
         indexes = [
             models.Index(fields=["form", "submitted_at"]),
+            models.Index(fields=["workspace", "submitted_at"]),
             models.Index(fields=["lead"]),
         ]
 

@@ -9,6 +9,8 @@ from django.utils import timezone
 from datetime import timedelta
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
+from django.core.cache import cache
+
 
 from leads.models import Lead, LeadActivity
 from deals.models import Deal
@@ -25,6 +27,12 @@ from django.db.models import Case, When, F, IntegerField, DecimalField
 from django.shortcuts import get_object_or_404
 from accounts.models import User
 from forms.models import Form, FormSubmission
+from ...services.time_to_conversion import time_to_conversion_analytics
+from ...services.funnel_service import get_user_funnel
+from ...services.revenue_service import get_revenue_dashboard
+from ...services.dashboard_service import get_dashboard_data
+
+CACHE_TTL = 300  # seconds, 5 minutes
 
 
 class AnalyticsDashboardAPIView(APIView):
@@ -293,49 +301,6 @@ class AnalyticsTrendsAPIView(APIView):
         )
 
 
-class FormAnalyticsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsWorkspaceMember]
-
-    def get(self, request, form_id):
-        workspace = get_user_workspace(request.user)
-
-        form = get_object_or_404(Form, id=form_id, workspace=workspace)
-
-        submissions = FormSubmission.objects.filter(form=form)
-
-        total_submissions = submissions.count()
-
-        leads = submissions.exclude(lead=None).values_list("lead_id", flat=True)
-
-        total_leads = len(leads)
-        unique_leads = len(set(leads))
-
-        deals = Deal.objects.filter(workspace=workspace, lead_id__in=leads)
-
-        deals_created = deals.count()
-
-        revenue = (
-            deals.filter(pipeline_stage="won").aggregate(total=Sum("value"))["total"]
-            or 0
-        )
-
-        conversion_rate = 0
-        if total_submissions > 0:
-            conversion_rate = (deals_created / total_submissions) * 100
-
-        return Response(
-            {
-                "form_name": form.name,
-                "submissions": total_submissions,
-                "leads_created": total_leads,
-                "unique_leads": unique_leads,
-                "deals_created": deals_created,
-                "revenue": revenue,
-                "conversion_rate": round(conversion_rate, 2),
-            }
-        )
-
-
 class FormTrendAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
@@ -354,29 +319,274 @@ class FormTrendAPIView(APIView):
         return Response(data)
 
 
-class WorkspaceFormsAnalyticsAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsWorkspaceMember]
+class FormConversionFunnelAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsWorkspaceMember, HasActiveSubscription]
+
+    def get(self, request, form_id):
+        workspace = get_user_workspace(request.user)
+        form = get_object_or_404(Form, id=form_id, workspace=workspace)
+
+        days = int(request.query_params.get("days", 30))
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
+
+        # 🔹 submissions
+        submissions_qs = FormSubmission.objects.filter(
+            form=form,
+            submitted_at__date__range=[start_date, end_date],
+        )
+
+        submissions_count = submissions_qs.count()
+
+        # 🔹 leads
+        lead_ids = submissions_qs.exclude(lead=None).values_list("lead_id", flat=True)
+
+        leads_count = len(set(lead_ids))
+
+        # 🔹 deals
+        deals_qs = Deal.objects.filter(
+            workspace=workspace,
+            lead_id__in=lead_ids,
+        )
+
+        deals_count = deals_qs.count()
+
+        # 🔹 won deals
+        won_qs = deals_qs.filter(pipeline_stage="won")
+        won_count = won_qs.count()
+
+        revenue = won_qs.aggregate(total=Sum("value"))["total"] or 0
+
+        # 🔹 conversion rates
+        submission_to_lead = (
+            (leads_count / submissions_count) * 100 if submissions_count else 0
+        )
+
+        lead_to_deal = (deals_count / leads_count) * 100 if leads_count else 0
+
+        deal_to_won = (won_count / deals_count) * 100 if deals_count else 0
+
+        return Response(
+            {
+                "form_id": form.id,
+                "form_name": form.name,
+                "period_days": days,
+                "submissions": submissions_count,
+                "leads": leads_count,
+                "deals": deals_count,
+                "won": won_count,
+                "revenue": revenue,
+                "rates": {
+                    "submission_to_lead": round(submission_to_lead, 2),
+                    "lead_to_deal": round(lead_to_deal, 2),
+                    "deal_to_won": round(deal_to_won, 2),
+                },
+            }
+        )
+
+
+class UserConversionFunnelAPIView(APIView):
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         workspace = get_user_workspace(request.user)
 
-        forms = Form.objects.filter(workspace=workspace)
+        if not workspace:
+            return Response({"error": "No workspace"}, status=400)
 
-        results = []
+        data = get_user_funnel(workspace)
 
-        for form in forms:
-            submissions = FormSubmission.objects.filter(form=form)
-            count = submissions.count()
+        return Response(
+            {
+                "success": True,
+                "message": "User funnel analytics",
+                "data": data,
+            }
+        )
 
-            leads = submissions.exclude(lead=None).count()
 
-            results.append(
+class WorkspaceFunnelDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
+
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+
+        if not workspace:
+            return Response(
+                {"error": "No active workspace"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        days = int(request.query_params.get("days", 30))
+        end_date = timezone.now().date()
+        start_date = end_date - timedelta(days=days)
+
+        # 🔹 submissions
+        submissions_qs = FormSubmission.objects.filter(
+            workspace=workspace,
+            submitted_at__date__range=[start_date, end_date],
+        )
+
+        submissions_count = submissions_qs.count()
+
+        # 🔹 leads
+        lead_ids = submissions_qs.exclude(lead=None).values_list("lead_id", flat=True)
+
+        unique_lead_ids = list(set(lead_ids))
+        leads_count = len(unique_lead_ids)
+
+        # 🔹 deals
+        deals_qs = Deal.objects.filter(
+            workspace=workspace,
+            lead_id__in=unique_lead_ids,
+        )
+
+        deals_count = deals_qs.count()
+
+        # 🔹 won deals
+        won_qs = deals_qs.filter(pipeline_stage="won")
+        won_count = won_qs.count()
+
+        revenue = won_qs.aggregate(total=Sum("value"))["total"] or 0
+
+        # 🔹 rates
+        submission_to_lead = (
+            (leads_count / submissions_count) * 100 if submissions_count else 0
+        )
+
+        lead_to_deal = (deals_count / leads_count) * 100 if leads_count else 0
+
+        deal_to_won = (won_count / deals_count) * 100 if deals_count else 0
+
+        # 🔹 top forms
+        top_forms = (
+            FormSubmission.objects.filter(
+                workspace=workspace,
+                submitted_at__date__range=[start_date, end_date],
+            )
+            .values("form_id", "form__name")
+            .annotate(submissions=Count("id"))
+            .order_by("-submissions")[:5]
+        )
+
+        top_form_data = []
+
+        for form in top_forms:
+            form_leads = (
+                FormSubmission.objects.filter(form_id=form["form_id"])
+                .exclude(lead=None)
+                .values_list("lead_id", flat=True)
+            )
+
+            form_deals = Deal.objects.filter(
+                workspace=workspace, lead_id__in=form_leads
+            )
+
+            form_revenue = (
+                form_deals.filter(pipeline_stage="won").aggregate(total=Sum("value"))[
+                    "total"
+                ]
+                or 0
+            )
+
+            top_form_data.append(
                 {
-                    "form_id": form.id,
-                    "form_name": form.name,
-                    "submissions": count,
-                    "leads": leads,
+                    "form_id": form["form_id"],
+                    "form_name": form["form__name"],
+                    "submissions": form["submissions"],
+                    "deals": form_deals.count(),
+                    "revenue": form_revenue,
                 }
             )
 
-        return Response(results)
+        return Response(
+            {
+                "period_days": days,
+                "submissions": submissions_count,
+                "leads": leads_count,
+                "deals": deals_count,
+                "won": won_count,
+                "revenue": revenue,
+                "rates": {
+                    "submission_to_lead": round(submission_to_lead, 2),
+                    "lead_to_deal": round(lead_to_deal, 2),
+                    "deal_to_won": round(deal_to_won, 2),
+                },
+                "top_forms": top_form_data,
+            }
+        )
+
+
+class TimeToConversionAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+
+        if not workspace:
+            return Response({"error": "No workspace found"}, status=400)
+
+        days = int(request.query_params.get("days", 30))
+
+        data = time_to_conversion_analytics(workspace, days)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Time-to-conversion analytics",
+                "data": data,
+            }
+        )
+
+
+class RevenueDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+
+        if not workspace:
+            return Response({"error": "No workspace"}, status=400)
+
+        days = int(request.query_params.get("days", 30))
+
+        data = get_revenue_dashboard(workspace, days)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Revenue dashboard",
+                "data": data,
+            }
+        )
+
+
+class UnifiedDashboardAPIView(APIView):
+    """
+    Returns a full workspace analytics dashboard in real-time.
+    Works seamlessly with batched signals and cache invalidation.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+        if not workspace:
+            return Response({"error": "No workspace found"}, status=400)
+
+        days = int(request.query_params.get("days", 30))
+
+        cache_key = f"dashboard_workspace_{workspace.id}_days_{days}"
+        data = cache.get(cache_key)
+        if not data:
+            # Rebuild dashboard fresh if cache missing or invalidated
+            data = get_dashboard_data(workspace, days)
+            cache.set(cache_key, data, CACHE_TTL)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Unified dashboard retrieved successfully",
+                "data": data,
+            }
+        )

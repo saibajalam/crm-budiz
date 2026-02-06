@@ -1,93 +1,144 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
-from django.db.models import Sum, Count, Q
+from django.db.models import Count, Sum, Q
 
 from deals.models import Deal
 from leads.models import Lead
 from .models import DealAnalytics, UserAnalytics
+from analytics.cache import invalidate_workspace_cache
+
+
+def get_today():
+    return timezone.now().date()
+
+
+def update_deal_analytics(workspace, date):
+    """
+    Batch update DealAnalytics for a workspace on a specific date.
+    """
+    # Total qualified leads
+    total_qualified = Lead.objects.filter(
+        workspace=workspace, status__in=["qualified", "converted"]
+    ).count()
+
+    # Total converted leads
+    converted_count = Lead.objects.filter(
+        workspace=workspace, status="converted"
+    ).count()
+
+    # Total deals and values today
+    deals_today = Deal.objects.filter(workspace=workspace, created_at__date=date)
+
+    total_deals = deals_today.count()
+    total_value = deals_today.aggregate(sum=Sum("value"))["sum"] or 0
+    pipeline_value = deals_today.aggregate(sum=Sum("value"))["sum"] or 0
+
+    analytics, _ = DealAnalytics.objects.get_or_create(
+        workspace=workspace,
+        date=date,
+        defaults={
+            "leads_converted": converted_count,
+            "total_leads_qualified": total_qualified,
+            "conversion_rate": (
+                (converted_count / total_qualified * 100) if total_qualified else 0
+            ),
+            "total_deals": total_deals,
+            "total_value": total_value,
+            "pipeline_value": pipeline_value,
+        },
+    )
+
+    # Update if exists
+    analytics.leads_converted = converted_count
+    analytics.total_leads_qualified = total_qualified
+    analytics.conversion_rate = (
+        (converted_count / total_qualified * 100) if total_qualified else 0
+    )
+    analytics.total_deals = total_deals
+    analytics.total_value = total_value
+    analytics.pipeline_value = pipeline_value
+    analytics.save()
+
+
+def update_user_analytics(user, workspace, date):
+    """
+    Batch update UserAnalytics for a user on a specific date.
+    """
+    leads_converted = Lead.objects.filter(
+        workspace=workspace, created_by=user, status="converted"
+    ).count()
+
+    conversion_value = (
+        Deal.objects.filter(
+            workspace=workspace,
+            created_by=user,
+            created_from_lead__isnull=False,
+            created_at__date=date,
+        ).aggregate(sum=Sum("value"))["sum"]
+        or 0
+    )
+
+    deals_created = Deal.objects.filter(
+        workspace=workspace, created_by=user, created_at__date=date
+    ).count()
+
+    user_analytics, _ = UserAnalytics.objects.get_or_create(
+        user=user,
+        workspace=workspace,
+        date=date,
+        defaults={
+            "leads_converted": leads_converted,
+            "conversion_value": conversion_value,
+            "deals_created": deals_created,
+        },
+    )
+
+    user_analytics.leads_converted = leads_converted
+    user_analytics.conversion_value = conversion_value
+    user_analytics.deals_created = deals_created
+    user_analytics.save()
 
 
 @receiver(post_save, sender=Lead)
-def update_lead_conversion_analytics(sender, instance, created, **kwargs):
+def lead_conversion_handler(sender, instance, **kwargs):
     """
-    Update analytics when a lead is converted.
-    This signal triggers when a lead's status changes to 'converted'.
+    Signal for Lead conversion, batch updates analytics per workspace/date.
     """
-    if instance.status == "converted" and instance.is_converted:
-        # Update DealAnalytics for the workspace
-        today = timezone.now().date()
-        analytics, created = DealAnalytics.objects.get_or_create(
-            workspace=instance.workspace,
-            date=today,
-            defaults={"leads_converted": 0, "total_leads_qualified": 0},
-        )
+    if instance.status != "converted" or not instance.is_converted:
+        return
 
-        # Increment leads converted count
-        analytics.leads_converted += 1
+    workspace = instance.workspace
+    today = get_today()
 
-        # Calculate conversion rate
-        # Get total qualified leads for this workspace
-        qualified_leads = Lead.objects.filter(
-            workspace=instance.workspace, status__in=["qualified", "converted"]
-        ).count()
+    # Update workspace analytics
+    update_deal_analytics(workspace, today)
 
-        analytics.total_leads_qualified = qualified_leads
+    # Update user analytics
+    if instance.created_by:
+        update_user_analytics(instance.created_by, workspace, today)
 
-        if qualified_leads > 0:
-            converted_count = Lead.objects.filter(
-                workspace=instance.workspace, status="converted"
-            ).count()
-            analytics.conversion_rate = (converted_count / qualified_leads) * 100
-
-        analytics.save()
-
-        # Update UserAnalytics for the user who converted the lead
-        # (Assuming the user who triggered the conversion is the one who should get credit)
-        # Note: This might need adjustment based on your business logic
-        user_analytics, created = UserAnalytics.objects.get_or_create(
-            user=instance.created_by,
-            workspace=instance.workspace,
-            date=today,
-            defaults={"leads_converted": 0, "conversion_value": 0.00},
-        )
-
-        user_analytics.leads_converted += 1
-        user_analytics.save()
+    # Invalidate dashboard cache
+    invalidate_workspace_cache(workspace.id)
 
 
 @receiver(post_save, sender=Deal)
-def update_deal_creation_analytics(sender, instance, created, **kwargs):
+def deal_creation_handler(sender, instance, created, **kwargs):
     """
-    Update analytics when a deal is created, especially for converted deals.
+    Signal for Deal creation, batch updates analytics per workspace/date.
     """
-    if created:
-        today = timezone.now().date()
+    if not created:
+        return
 
-        # Update DealAnalytics
-        analytics, created = DealAnalytics.objects.get_or_create(
-            workspace=instance.workspace,
-            date=today,
-            defaults={"total_deals": 0, "total_value": 0.00},
-        )
+    workspace = instance.workspace
+    today = get_today()
 
-        analytics.total_deals += 1
-        analytics.total_value += instance.value
-        analytics.pipeline_value += instance.value
-        analytics.save()
+    # Update workspace analytics
+    update_deal_analytics(workspace, today)
 
-        # Update UserAnalytics
-        user_analytics, created = UserAnalytics.objects.get_or_create(
-            user=instance.created_by,
-            workspace=instance.workspace,
-            date=today,
-            defaults={"deals_created": 0},
-        )
+    # Update user analytics
+    if instance.created_by:
+        update_user_analytics(instance.created_by, workspace, today)
 
-        user_analytics.deals_created += 1
-
-        # If this deal was created from a lead conversion, update conversion value
-        if instance.created_from_lead:
-            user_analytics.conversion_value += instance.value
-
-        user_analytics.save()
+    # Invalidate dashboard cache
+    invalidate_workspace_cache(workspace.id)

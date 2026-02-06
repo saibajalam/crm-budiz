@@ -27,6 +27,7 @@ class Deal(TimeStampedModel, SoftDeleteModel):
     pipeline_stage = models.CharField(
         max_length=20, choices=PIPELINE_CHOICES, default="lead"
     )
+    won_at = models.DateTimeField(null=True, blank=True)
 
     expected_close_date = models.DateField(null=True, blank=True)
     display_number = models.PositiveIntegerField()
@@ -78,6 +79,11 @@ class Deal(TimeStampedModel, SoftDeleteModel):
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if self.pipeline_stage == "closed_won" and self.won_at is None:
+            self.won_at = timezone.now()
+        super().save(*args, **kwargs)
 
     def soft_delete(self):
         self.is_deleted = True
