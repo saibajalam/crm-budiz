@@ -4,6 +4,8 @@ from common.models import TimeStampedModel
 
 # Create your models here.
 
+user = settings.AUTH_USER_MODEL
+
 
 class Form(TimeStampedModel):
 
@@ -126,5 +128,15 @@ class FormResponse(TimeStampedModel):
     field = models.ForeignKey(
         FormField, on_delete=models.CASCADE, related_name="responses"
     )
+    value = models.JSONField()
 
-    value = models.TextField()
+    workspace = models.ForeignKey("workspaces.Workspace", on_delete=models.CASCADE)
+    created_by = models.ForeignKey(user, on_delete=models.SET_NULL, null=True)
+
+    class Meta:
+        db_table = "form_responses"
+        unique_together = ("submission", "field")
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.submission_id} - {self.field.label}"

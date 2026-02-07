@@ -1,115 +1,61 @@
 from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
-from ...models import Form, FormSubmission, FormResponse
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+
+from workspaces.permissions import IsWorkspaceMember
+from workspaces.utils import get_user_workspace
+from subscriptions.permissions import HasActiveSubscription
+
+from ...models import Form
 from ...api.v1.serailizers import (
     PublicFormSubmitSerializer,
     CreateFormSerializer,
     AddFieldSerializer,
     UpdateFormAssignmentSerializer,
 )
-from rest_framework.response import Response
-from leads.models import Lead
-from deals.models import Deal
-from django.utils import timezone
-from datetime import timedelta
-from django.db.models import Sum, Count, Q
-from rest_framework.permissions import IsAuthenticated
-from workspaces.permissions import IsWorkspaceMember
-from workspaces.utils import get_user_workspace
+
+# services
+from ...services.submission_service import submit_public_form
+from ...services.field_service import create_form_field
+from ...services.assignment_service import update_form_assignment
+
 import uuid
-from ...utils import get_round_robin_user
-from django.contrib.auth import get_user_model
-from subscriptions.permissions import HasActiveSubscription
-from rest_framework import status
-from django.db.models.functions import TruncDate
-
-# Create your views here.
-
-User = get_user_model()
 
 
+# =========================================================
+# PUBLIC FORM SUBMIT
+# =========================================================
 class PublicFormSubmitAPIView(APIView):
     permission_classes = []
 
     def post(self, request, slug):
         form = get_object_or_404(Form, slug=slug, is_active=True)
-        workspace = form.workspace
 
-        data = request.data.get("data", {})
-
-        # Extract mapped values
-        lead_data = {}
-
-        for field in form.fields.all():
-            if field.label in data:
-                value = data[field.label]
-
-                if field.map_to_lead_field != "none":
-                    lead_data[field.map_to_lead_field] = value
-
-        email = lead_data.get("email")
-        phone = lead_data.get("phone")
-
-        lead = None
-
-        # DUPLICATE HANDLING
-        if form.duplicate_handling == "update":
-            lead = Lead.objects.filter(workspace=workspace, email=email).first()
-
-        elif form.duplicate_handling == "configurable":
-            lead = (
-                Lead.objects.filter(workspace=workspace)
-                .filter(Q(email=email) | Q(phone=phone))
-                .first()
-            )
-
-        # CREATE OR UPDATE LEAD
-        if not lead:
-            lead = Lead.objects.create(
-                workspace=workspace, created_by=None, **lead_data
-            )
-        else:
-            for key, value in lead_data.items():
-                setattr(lead, key, value)
-            lead.save()
-
-        # ASSIGNMENT LOGIC
-        assignee = None
-
-        if form.assignment_type == "fixed" and form.fixed_assignee:
-            assignee = form.fixed_assignee
-
-        elif form.assignment_type == "round_robin":
-            assignee = get_round_robin_user(form)
-
-        if assignee:
-            lead.assigned_to = assignee
-            lead.save(update_fields=["assigned_to"])
-
-        # CREATE SUBMISSION
-        submission = FormSubmission.objects.create(
-            form=form,
-            workspace=workspace,
-            lead=lead,
+        serializer = PublicFormSubmitSerializer(
+            data=request.data,
+            context={"form": form},
         )
+        serializer.is_valid(raise_exception=True)
 
-        # STORE RESPONSES
-        for field in form.fields.all():
-            if field.label in data:
-                FormResponse.objects.create(
-                    submission=submission,
-                    field=field,
-                    value=data[field.label],
-                )
+        submission = submit_public_form(
+            form=form,
+            data=serializer.validated_data["data"],
+        )
 
         return Response(
             {
                 "success": True,
-                "message": "Form submitted successfully",
-            }
+                "submission_id": submission.id,
+            },
+            status=status.HTTP_201_CREATED,
         )
 
 
+# =========================================================
+# CREATE FORM
+# =========================================================
 class CreateFormAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember, HasActiveSubscription]
 
@@ -120,12 +66,17 @@ class CreateFormAPIView(APIView):
         serializer.is_valid(raise_exception=True)
 
         form = serializer.save(
-            workspace=workspace, created_by=request.user, slug=str(uuid.uuid4())[:10]
+            workspace=workspace,
+            created_by=request.user,
+            slug=str(uuid.uuid4())[:10],
         )
 
-        return Response(serializer.data, status=201)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+# =========================================================
+# ADD FIELD
+# =========================================================
 class AddFieldAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember, HasActiveSubscription]
 
@@ -137,11 +88,17 @@ class AddFieldAPIView(APIView):
         serializer = AddFieldSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        serializer.save(form=form)
+        field = create_form_field(
+            form=form,
+            validated_data=serializer.validated_data,
+        )
 
-        return Response(serializer.data, status=201)
+        return Response(AddFieldSerializer(field).data, status=201)
 
 
+# =========================================================
+# UPDATE ASSIGNMENT
+# =========================================================
 class UpdateFormAssignmentAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember, HasActiveSubscription]
 
@@ -151,28 +108,24 @@ class UpdateFormAssignmentAPIView(APIView):
 
         serializer = UpdateFormAssignmentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
 
-        form.assignment_type = data["assignment_type"]
+        update_form_assignment(
+            form=form,
+            data=serializer.validated_data,
+        )
 
-        if data["assignment_type"] == "fixed":
-            user = User.objects.get(id=data["fixed_assignee_id"])
-            form.fixed_assignee = user
-
-        if data["assignment_type"] == "round_robin":
-            users = User.objects.filter(id__in=data["round_robin_user_ids"])
-            form.round_robin_users.set(users)
-
-        form.save()
-
-        return Response({"success": True})
+        return Response({"success": True}, status=200)
 
 
+# =========================================================
+# EMBED
+# =========================================================
 class FormEmbedAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     def get(self, request, form_id):
-        form = get_object_or_404(Form, id=form_id)
+        workspace = get_user_workspace(request.user)
+        form = get_object_or_404(Form, id=form_id, workspace=workspace)
 
         embed_code = f"""
 <script>
