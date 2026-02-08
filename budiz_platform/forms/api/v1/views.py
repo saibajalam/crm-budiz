@@ -71,7 +71,9 @@ class CreateFormAPIView(APIView):
             slug=str(uuid.uuid4())[:10],
         )
 
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        response_serializer = CreateFormSerializer(form)
+
+        return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
 
 # =========================================================

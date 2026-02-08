@@ -5,6 +5,7 @@ from ..models import FormSubmission
 from .duplicate_service import get_or_create_lead
 from .assignment_service import assign_lead_from_form
 from .response_service import create_responses
+from leads.services.lead_service import create_lead
 
 
 @transaction.atomic
@@ -29,7 +30,11 @@ def submit_public_form(*, form, data: dict):
                 lead_payload[field.map_to_lead_field] = value
 
     # 🔥 DUPLICATE SERVICE
-    lead = get_or_create_lead(form, lead_payload)
+    lead = create_lead(
+        workspace=workspace,
+        payload=lead_payload,
+        created_by=None,
+    )
 
     # 🔥 ASSIGNMENT SERVICE
     assign_lead_from_form(form=form, lead=lead)

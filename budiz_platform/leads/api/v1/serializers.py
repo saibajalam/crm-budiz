@@ -11,6 +11,7 @@ from common.email_utils import (
 from workspaces.models import WorkspaceMember
 from decimal import Decimal
 from django.db import transaction
+from leads.services.lead_service import create_lead
 
 
 class CreateLeadSerializer(serializers.ModelSerializer):
@@ -35,12 +36,18 @@ class CreateLeadSerializer(serializers.ModelSerializer):
         read_only_fields = ["score"]
 
     def create(self, validated_data):
+        workspace = self.context["workspace"]
+        user = self.context["request"].user
         display_number = get_next_display_number(
             validated_data["workspace"],
             "lead",
         )
         validated_data["display_number"] = display_number
-        return super().create(validated_data)
+        return create_lead(
+            workspace=workspace,
+            payload=validated_data,
+            created_by=user,
+        )
 
 
 class LeadUpdateSerializer(serializers.ModelSerializer):

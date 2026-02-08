@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "workspaces.apps.WorkspacesConfig",
     "analytics.apps.AnalyticsConfig",
     "forms.apps.FormsConfig",
+    "automation.apps.AutomationConfig",
 ]
 
 MIDDLEWARE = [
