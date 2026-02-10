@@ -7,3 +7,5 @@ db.sqlite3
 
 # Virtual env (if any)
 myenv/
+venv/
+env/
