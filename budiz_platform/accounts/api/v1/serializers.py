@@ -3,6 +3,7 @@ from django.contrib.auth import authenticate
 from ...models import User, Role, UserRole
 from django.db import transaction
 from subscriptions.models import Company
+from workspaces.models import Workspace
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -112,6 +113,11 @@ class UserCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError("Invalid role_id")
         return value
 
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("A user with this email already exists.")
+        return value
+
     def create(self, validated_data):
         role_id = validated_data.pop("role_id")
         password = validated_data.pop("password")
@@ -127,11 +133,6 @@ class UserCreateSerializer(serializers.Serializer):
         UserRole.objects.create(user=user, role=role)
 
         return user
-
-    def validate_email(self, value):
-        if User.objects.filter(email=value).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value
 
 
 class ForgotPasswordSerializer(serializers.Serializer):

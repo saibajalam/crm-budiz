@@ -2,7 +2,8 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
+from rest_framework.authentication import TokenAuthentication
 from django.contrib.auth import authenticate
 
 from .serializers import (
@@ -20,6 +21,8 @@ from ...utils import send_verification_email
 from django.utils import timezone
 from datetime import timedelta
 from accounts.jobs.emails_verification import resend_email_verification
+from common.permissions import IsSuperAdmin
+from subscriptions.permissions import HasActiveSubscription
 
 
 class RegisterAPI(APIView):
@@ -84,20 +87,19 @@ class LoginAPIView(APIView):
                 },
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             },
             status=status.HTTP_200_OK,
         )
 
 
 class UserCreateAPIView(APIView):
-    authentication_classes = []  # later JWT
-    permission_classes = []
+    permission_classes = [IsAuthenticated, IsSuperAdmin]
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = serializer.save()
+        user = serializer.save(created_by=request.user)
 
         return Response(
             {
@@ -111,7 +113,7 @@ class UserCreateAPIView(APIView):
                 },
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_201_CREATED,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -181,7 +183,7 @@ class ResetPasswordAPIView(APIView):
                 "message": "Password reset successful",
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             },
             status=status.HTTP_200_OK,
         )
@@ -204,7 +206,7 @@ class VerifyEmailAPIView(APIView):
                 {
                     "error": "Invalid or used token",
                     "success": False,
-                    "status_code": 400,
+                    "status_code": status.HTTP_400_BAD_REQUEST,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -227,7 +229,7 @@ class VerifyEmailAPIView(APIView):
                 "message": "Email verified successfully",
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             },
             status=status.HTTP_200_OK,
         )
@@ -250,7 +252,7 @@ class ResendVerificationAPIView(APIView):
                 "verification_token": str(token),
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             },
             status=status.HTTP_200_OK,
         )
@@ -269,7 +271,7 @@ class SuperAdminDashboardAPIView(APIView):
                 "message": "Welcome to SuperAdmin Dashboard",
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             }
         )
 
@@ -284,7 +286,7 @@ class AdminDashboardAPIView(APIView):
                 "message": "Welcome to Admin Dashboard",
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             }
         )
 
@@ -299,7 +301,7 @@ class ManagerDashboardAPIView(APIView):
                 "message": "Welcome to Manager Dashboard",
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             }
         )
 
@@ -314,6 +316,6 @@ class SalesDashboardAPIView(APIView):
                 "message": "Welcome to Sales Dashboard",
                 "success": True,
                 "error": None,
-                "status_code": 200,
+                "status_code": status.HTTP_200_OK,
             }
         )
