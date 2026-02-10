@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/", include("analytics.api.v1.urls")),
     path("api/", include("forms.api.v1.urls")),
     path("api/", include("automation.api.v1.urls")),
+    path("api/", include("tasks.api.v1.urls")),
 ]
 
 

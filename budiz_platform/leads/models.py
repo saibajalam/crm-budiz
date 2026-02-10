@@ -5,6 +5,7 @@ from django.conf import settings
 from common.managers import SoftDeleteManager
 from django.utils import timezone
 from common.mixins import SoftDeleteModel
+from core.constants import ACTIVITY_TYPES, PRIORITY_CHOICES
 import PIL
 
 # Create your models here.
@@ -78,20 +79,6 @@ class Lead(TimeStampedModel, SoftDeleteModel):
 
 
 class LeadActivity(TimeStampedModel, SoftDeleteModel):
-
-    ACTIVITY_TYPES = [
-        ("call", "Call"),
-        ("email", "Email"),
-        ("meeting", "Meeting"),
-        ("note", "Note"),
-        ("task", "Task"),
-    ]
-
-    PRIORITY_CHOICES = [
-        ("low", "Low"),
-        ("medium", "Medium"),
-        ("high", "High"),
-    ]
 
     lead = models.ForeignKey(
         "leads.Lead", on_delete=models.CASCADE, related_name="activities"

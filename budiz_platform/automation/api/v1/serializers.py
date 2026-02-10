@@ -30,7 +30,8 @@ class AutomationActionSerializer(serializers.ModelSerializer):
         fields = ["id", "action_type", "params"]
 
     def validate_action_type(self, val):
-        if val not in ACTION_CHOICES:
+        action_types = {choice[0] for choice in ACTION_CHOICES}
+        if val not in action_types:
             raise serializers.ValidationError("Invalid action type")
         return val
 

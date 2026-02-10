@@ -1,6 +1,3 @@
-from accounts.models import User
-from automation.actions.assign import assign_user_action
-from automation.actions.emails import send_email_action
 from .constants import OPERATORS
 
 

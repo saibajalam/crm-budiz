@@ -28,3 +28,17 @@ DEFAULT_ROLES = [
     ROLE_MANAGER,
     ROLE_SALES_REP,
 ]
+
+PRIORITY_CHOICES = [
+    ("low", "Low"),
+    ("medium", "Medium"),
+    ("high", "High"),
+]
+
+ACTIVITY_TYPES = [
+    ("call", "Call"),
+    ("email", "Email"),
+    ("meeting", "Meeting"),
+    ("note", "Note"),
+    ("task", "Task"),
+]

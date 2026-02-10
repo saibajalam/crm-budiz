@@ -1,9 +1,11 @@
-from ..actions import update, assign, emails
+from ..actions import update, assign, emails, create_task, webhook
 
 ACTION_MAP = {
     "update_field": update.execute,
     "assign_user": assign.execute,
     "send_email": emails.execute,
+    "create_task": create_task.execute,
+    "webhook": webhook.execute,
 }
 
 

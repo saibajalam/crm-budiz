@@ -77,6 +77,35 @@ class IsWorkspaceMember(BasePermission):
 
 class IsSuperAdmin(BasePermission):
     def has_permission(self, request, view):
+        """Allow access to superadmins.
+
+        Access is granted if any of the following are true:
+        - Django `is_superuser` flag is set on the user (global superuser)
+        - The user has a global UserRole named "superadmin"
+        - The user is a workspace superadmin (existing behavior)
+        """
+        # Global Django superuser bypass
+        if (
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "is_superuser", False)
+        ):
+            return True
+
+        # Global UserRole-based superadmin (non-workspace)
+        if (
+            request.user
+            and request.user.is_authenticated
+            and getattr(request.user, "has_role", None)
+        ):
+            try:
+                if request.user.has_role("superadmin"):
+                    return True
+            except Exception:
+                # Defensive: if has_role exists but fails for some reason, fall back to workspace check
+                pass
+
+        # Workspace-based 'superadmin' (existing behavior)
         return is_superadmin(request)
 
 

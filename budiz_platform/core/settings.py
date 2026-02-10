@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "analytics.apps.AnalyticsConfig",
     "forms.apps.FormsConfig",
     "automation.apps.AutomationConfig",
+    "tasks.apps.TasksConfig",
 ]
 
 MIDDLEWARE = [
