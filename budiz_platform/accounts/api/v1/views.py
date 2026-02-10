@@ -21,7 +21,7 @@ from ...utils import send_verification_email
 from django.utils import timezone
 from datetime import timedelta
 from accounts.jobs.emails_verification import resend_email_verification
-from common.permissions import IsSuperAdmin
+from common.permissions import IsSuperAdmin, IsAdmin
 from subscriptions.permissions import HasActiveSubscription
 
 
@@ -94,7 +94,7 @@ class LoginAPIView(APIView):
 
 
 class UserCreateAPIView(APIView):
-    permission_classes = [IsAuthenticated, IsSuperAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin]
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
