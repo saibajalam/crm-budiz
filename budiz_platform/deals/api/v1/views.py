@@ -23,6 +23,7 @@ from django.shortcuts import get_object_or_404
 from workspaces.permissions import IsWorkspaceMember, IsWorkspaceOwnerOrAdmin
 from common.utils import format_display_number
 from django.utils import timezone
+from django.db import transaction
 
 
 class CreateDealAPIView(APIView):
@@ -63,21 +64,38 @@ class CreateDealAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        deal = serializer.save()
+        with transaction.atomic():
+            try:
+                deal = serializer.save()
+                response_serializer = DealDetailSerializer(
+                    deal, context={"request": request}
+                )
 
-        response_serializer = DealDetailSerializer(deal, context={"request": request})
-
-        return Response(
-            {
-                "message": "Deal created successfully",
-                "data": response_serializer.data,
-                "formatted_number": format_display_number("DEAL", deal.display_number),
-                "success": True,
-                "error": None,
-                "status_code": status.HTTP_201_CREATED,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+                return Response(
+                    {
+                        "message": "Deal created successfully",
+                        "data": response_serializer.data,
+                        "formatted_number": format_display_number(
+                            "DEAL", deal.display_number
+                        ),
+                        "success": True,
+                        "error": None,
+                        "status_code": status.HTTP_201_CREATED,
+                    },
+                    status=status.HTTP_201_CREATED,
+                )
+            except Exception:
+                transaction.set_rollback(True)
+                return Response(
+                    {
+                        "message": "Deal creation failed",
+                        "data": None,
+                        "success": False,
+                        "error": True,
+                        "status_code": status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
 
 
 class PipelineWiseDealListAPIView(ListAPIView):

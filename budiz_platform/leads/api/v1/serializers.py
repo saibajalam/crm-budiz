@@ -36,12 +36,18 @@ class CreateLeadSerializer(serializers.ModelSerializer):
         read_only_fields = ["score"]
 
     def create(self, validated_data):
-        workspace = self.context["workspace"]
-        user = self.context["request"].user
-        display_number = get_next_display_number(
-            validated_data["workspace"],
-            "lead",
+        workspace = validated_data.pop("workspace", None) or self.context.get(
+            "workspace"
         )
+        if not workspace:
+            raise serializers.ValidationError("Workspace context required")
+
+        request = self.context.get("request")
+        user = request.user if request else validated_data.pop("created_by", None)
+        if not user:
+            raise serializers.ValidationError("User context required")
+
+        display_number = get_next_display_number(workspace, "lead")
         validated_data["display_number"] = display_number
         return create_lead(
             workspace=workspace,

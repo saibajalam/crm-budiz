@@ -8,8 +8,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import transaction
 
 from ...models import Lead, LeadActivity, LeadActivityAttachment
 from .serializers import (
@@ -243,9 +245,16 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
 
     def get_queryset(self):
         lead_id = self.kwargs["lead_id"]
-        get_object_or_404(Lead, id=lead_id)
+        workspace = get_user_workspace(self.request.user)
+        if not workspace:
+            raise PermissionDenied("You are not permitted to perform this action")
+
+        try:
+            get_object_or_404(Lead, id=lead_id, workspace=workspace)
+        except Exception:
+            raise PermissionDenied("You are not permitted to perform this action")
         return (
-            LeadActivity.objects.filter(lead_id=lead_id)
+            LeadActivity.objects.filter(lead_id=lead_id, workspace=workspace)
             .select_related("performed_by")
             .order_by("-created_at")
         )
@@ -273,37 +282,60 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        lead = get_object_or_404(Lead, id=self.kwargs["lead_id"])
-        activity = LeadActivity.objects.create(
-            lead=lead,
-            workspace=lead.workspace,
-            activity_type=serializer.validated_data["activity_type"],
-            priority=serializer.validated_data.get("priority", "medium"),
-            subject=serializer.validated_data["subject"],
-            description=serializer.validated_data.get("description", ""),
-            due_date=serializer.validated_data.get("due_date"),
-            attachment=serializer.validated_data.get("attachment"),
-            performed_by=self.request.user,
-        )
+        lead_id = self.kwargs["lead_id"]
+        workspace = get_user_workspace(request.user)
+        if not workspace:
+            raise PermissionDenied("You are not permitted to perform this action")
 
-        # Update lead score
-        update_lead_score(lead, activity.activity_type)
+        requested_lead_id = serializer.validated_data.get("lead_id")
+        if requested_lead_id is not None and requested_lead_id != lead_id:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Lead ID in request does not match URL",
+                    "data": None,
+                    "error": True,
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Return activity data using the list serializer
-        response_serializer = LeadActivityListSerializer(
-            activity, context={"request": request}
-        )
+        try:
+            lead = get_object_or_404(Lead, id=lead_id, workspace=workspace)
+        except Exception:
+            raise PermissionDenied("You are not permitted to perform this action")
 
-        return Response(
-            {
-                "success": True,
-                "message": "Activity created successfully",
-                "data": response_serializer.data,
-                "error": None,
-                "status_code": status.HTTP_201_CREATED,
-            },
-            status=status.HTTP_201_CREATED,
-        )
+        with transaction.atomic():
+            activity = LeadActivity.objects.create(
+                lead=lead,
+                workspace=lead.workspace,
+                activity_type=serializer.validated_data["activity_type"],
+                priority=serializer.validated_data.get("priority", "medium"),
+                subject=serializer.validated_data["subject"],
+                description=serializer.validated_data.get("description", ""),
+                due_date=serializer.validated_data.get("due_date"),
+                attachment=serializer.validated_data.get("attachment"),
+                performed_by=self.request.user,
+            )
+
+            # Update lead score
+            update_lead_score(lead, activity.activity_type)
+
+            # Return activity data using the list serializer
+            response_serializer = LeadActivityListSerializer(
+                activity, context={"request": request}
+            )
+
+            return Response(
+                {
+                    "success": True,
+                    "message": "Activity created successfully",
+                    "data": response_serializer.data,
+                    "error": None,
+                    "status_code": status.HTTP_201_CREATED,
+                },
+                status=status.HTTP_201_CREATED,
+            )
 
 
 class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
@@ -316,6 +348,20 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
     queryset = LeadActivity.objects.all()
     lookup_url_kwarg = "activity_id"
     parser_classes = [MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        workspace = get_user_workspace(self.request.user)
+        if not workspace:
+            raise PermissionDenied("You are not permitted to perform this action")
+
+        return LeadActivity.objects.filter(workspace=workspace)
+
+    def get_object(self):
+        obj = super().get_object()
+        workspace = get_user_workspace(self.request.user)
+        if not workspace or obj.workspace_id != workspace.id:
+            raise PermissionDenied("You are not permitted to perform this action")
+        return obj
 
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:

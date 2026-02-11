@@ -15,6 +15,10 @@ def create_lead(*, workspace, payload: dict, created_by):
     ALL lead creation must go through here.
     """
 
+    payload = dict(payload)
+    payload.pop("workspace", None)
+    payload.pop("created_by", None)
+
     lead = Lead.objects.create(workspace=workspace, created_by=created_by, **payload)
 
     # 🔥 AUTOMATION TRIGGER
