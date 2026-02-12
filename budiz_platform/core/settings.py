@@ -147,6 +147,15 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "EXCEPTION_HANDLER": "core.exception_handler.custom_exception_handler",
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "100/hour",  # Anonymous users: 100 requests per hour
+        "user": "1000/hour",  # Authenticated users: 1000 requests per hour
+        "public_form": "20/hour",  # Public form submissions: 20 per hour
+    },
 }
 
 SIMPLE_JWT = {
@@ -176,3 +185,4 @@ else:
 
 
 FRONTEND_URL = "http://127.0.0.1:8000/api/workspaces/invite/accept/"
+API_BASE_URL = "http://127.0.0.1:8000"  # Update this in production

@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from workspaces.permissions import IsWorkspaceMember
 from workspaces.utils import get_user_workspace
 
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+
 from automation.models import AutomationRule
 from .serializers import AutomationRuleSerializer
 from django.shortcuts import get_object_or_404
@@ -17,14 +19,24 @@ from django.shortcuts import get_object_or_404
 class AutomationRuleListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
+    @extend_schema(
+        responses={200: AutomationRuleSerializer(many=True)},
+        description="List all automation rules in the workspace",
+        tags=["Automation"],
+    )
     def get(self, request):
         workspace = get_user_workspace(request.user)
-
         rules = AutomationRule.objects.filter(workspace=workspace)
         serializer = AutomationRuleSerializer(rules, many=True)
 
         return Response(serializer.data)
 
+    @extend_schema(
+        request=AutomationRuleSerializer,
+        responses={201: AutomationRuleSerializer},
+        description="Create a new automation rule",
+        tags=["Automation"],
+    )
     def post(self, request):
         workspace = get_user_workspace(request.user)
 
@@ -46,19 +58,30 @@ class AutomationRuleDetailAPIView(APIView):
 
     def get_object(self, request, rule_id):
         workspace = get_user_workspace(request.user)
+
         return get_object_or_404(
             AutomationRule,
             id=rule_id,
             workspace=workspace,
         )
 
+    @extend_schema(
+        responses={200: AutomationRuleSerializer},
+        description="Retrieve a specific automation rule",
+        tags=["Automation"],
+    )
     def get(self, request, rule_id):
         rule = self.get_object(request, rule_id)
         return Response(AutomationRuleSerializer(rule).data)
 
+    @extend_schema(
+        request=AutomationRuleSerializer,
+        responses={200: AutomationRuleSerializer},
+        description="Partially update an automation rule",
+        tags=["Automation"],
+    )
     def patch(self, request, rule_id):
         rule = self.get_object(request, rule_id)
-
         serializer = AutomationRuleSerializer(
             rule,
             data=request.data,
@@ -70,6 +93,11 @@ class AutomationRuleDetailAPIView(APIView):
 
         return Response(serializer.data)
 
+    @extend_schema(
+        responses={204: OpenApiResponse(description="Automation rule deleted")},
+        description="Delete an automation rule",
+        tags=["Automation"],
+    )
     def delete(self, request, rule_id):
         rule = self.get_object(request, rule_id)
         rule.delete()
@@ -79,6 +107,11 @@ class AutomationRuleDetailAPIView(APIView):
 class ToggleAutomationRuleAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Automation rule toggled")},
+        description="Toggle automation rule active status",
+        tags=["Automation"],
+    )
     def patch(self, request, rule_id):
         workspace = get_user_workspace(request.user)
 

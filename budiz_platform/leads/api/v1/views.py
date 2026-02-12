@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -23,6 +24,7 @@ from .serializers import (
     LeadActivityListSerializer,
     LeadUpdateSerializer,
     LeadActivityFeedSerializer,
+    LeadConversionSerializer,
 )
 from subscriptions.permissions import HasActiveSubscription
 from ...permissions import CanDeleteLead, CanDeleteLeadActivity, LeadAccessPermission
@@ -58,6 +60,14 @@ class LeadListCreateAPIView(ListCreateAPIView):
             return CreateLeadSerializer
         return LeadListSerializer
 
+    @extend_schema(
+        operation_id="API To GET leads",
+        description="""
+        This API is to retrieve the details of leads provided in the URL.
+        """,
+        summary="EP-LEAD-01",
+        request=LeadListSerializer,
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -72,6 +82,14 @@ class LeadListCreateAPIView(ListCreateAPIView):
             }
         )
 
+    @extend_schema(
+        operation_id="API To CREATE individual lead",
+        description="""
+        This API is to create a new lead.
+        """,
+        summary="EP-LEAD-02",
+        request=CreateLeadSerializer,
+    )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -120,6 +138,14 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             return LeadUpdateSerializer
         return LeadDetailSerializer
 
+    @extend_schema(
+        operation_id="API To GET individual lead",
+        description="""
+        This API is to retrieve the details of an individual lead.
+        """,
+        summary="EP-LEAD-03",
+        request=LeadDetailSerializer,
+    )
     def retrieve(self, request, *args, **kwargs):
         lead = self.get_object()
         serializer = self.get_serializer(lead)
@@ -134,6 +160,14 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        operation_id="API To UPDATE individual lead",
+        description="""
+        This API is to update an existing lead.
+        """,
+        summary="EP-LEAD-04",
+        request=LeadUpdateSerializer,
+    )
     def update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         instance = self.get_object()
@@ -154,26 +188,19 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        operation_id="API To DELETE individual lead",
+        description="""
+        This API is to delete an existing lead.
+        """,
+        summary="EP-LEAD-05",
+    )
     def destroy(self, request, *args, **kwargs):
         lead = self.get_object()
         lead.soft_delete()
         return Response(
             {
                 "message": "Lead deleted successfully",
-                "data": None,
-                "success": True,
-                "error": None,
-                "status_code": status.HTTP_200_OK,
-            },
-            status=status.HTTP_200_OK,
-        )
-
-    def restore(self, request, *args, **kwargs):
-        lead = self.get_object()
-        lead.restore()
-        return Response(
-            {
-                "message": "Lead restored successfully",
                 "data": None,
                 "success": True,
                 "error": None,
@@ -190,6 +217,13 @@ class LeadRestoreAPIView(APIView):
         IsWorkspaceMember,
     ]  # can add custom permission if needed
 
+    @extend_schema(
+        operation_id="API To RESTORE individual lead",
+        description="""
+        This API is to restore a deleted lead.
+        """,
+        summary="EP-LEADRESTORE-01",
+    )
     def post(self, request, lead_id):
         try:
             lead = Lead.all_objects.get(id=lead_id, is_deleted=True)
@@ -264,6 +298,14 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
             return LeadActivityCreateSerializer
         return LeadActivityListSerializer
 
+    @extend_schema(
+        operation_id="API To GET lead-related activites",
+        description="""
+        This API is to retrieve lead-related activities.
+        """,
+        summary="EP-LEADACTIVITY-01",
+        request=LeadActivityListSerializer,
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         page = self.paginate_queryset(queryset)
@@ -278,6 +320,14 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
             }
         )
 
+    @extend_schema(
+        operation_id="API To CREATE lead-related activity",
+        description="""
+        This API is to create a new lead-related activity.
+        """,
+        summary="EP-LEADACTIVITY-02",
+        request=LeadActivityCreateSerializer,
+    )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -368,6 +418,14 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             return LeadActivityUpdateSerializer
         return LeadActivityListSerializer
 
+    @extend_schema(
+        operation_id="API To RETRIEVE a specific lead-related activity",
+        description="""
+        This API is to retrieve a specific lead-related activity.
+        """,
+        summary="EP-LEADACTIVITY-03",
+        request=LeadActivityListSerializer,
+    )
     def retrieve(self, request, *args, **kwargs):
         activity = self.get_object()
         serializer = self.get_serializer(activity)
@@ -382,6 +440,14 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        operation_id="API To UPDATE lead-related activity",
+        description="""
+        This API is to update a specific lead-related activity.
+        """,
+        summary="EP-LEADACTIVITY-04",
+        request=LeadActivityUpdateSerializer,
+    )
     def update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         activity = self.get_object()
@@ -409,6 +475,13 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        operation_id="API To DELETE lead-related activity",
+        description="""
+        This API is to delete a specific lead-related activity.
+        """,
+        summary="EP-LEADACTIVITY-05",
+    )
     def destroy(self, request, *args, **kwargs):
         activity = self.get_object()
         activity.soft_delete()
@@ -423,24 +496,17 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
-    def restore(self, request, *args, **kwargs):
-        activity = self.get_object()
-        activity.restore()
-        return Response(
-            {
-                "message": "Activity restored successfully",
-                "data": None,
-                "success": True,
-                "error": None,
-                "status_code": status.HTTP_200_OK,
-            },
-            status=status.HTTP_200_OK,
-        )
-
 
 class LeadActivityRestoreAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
+    @extend_schema(
+        operation_id="API To RESTORE lead-related activity",
+        description="""
+        This API is to restore a specific lead-related activity.
+        """,
+        summary="EP-LEADACTIVITY-06",
+    )
     def post(self, request, activity_id):
         try:
             activity = LeadActivity.all_objects.get(id=activity_id, is_deleted=True)
@@ -508,6 +574,14 @@ class LeadActivityFeedAPIView(ListAPIView):
 
         return queryset.order_by("-due_date")
 
+    @extend_schema(
+        operation_id="API To GET lead-related activites",
+        description="""
+        This API is to retrieve lead-related activities.
+        """,
+        summary="EP-LEADACTIVITY-07",
+        request=LeadActivityListSerializer,
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -537,6 +611,15 @@ class LeadConversionAPIView(APIView):
 
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
+    @extend_schema(
+        operation_id="API To CONVERT lead to deal",
+        description="""
+        This API is to convert a qualified lead to a deal.
+        """,
+        summary="EP-LEADCONVERSION-01",
+        request=LeadConversionSerializer,
+    )
+    @transaction.atomic
     def post(self, request, lead_id):
         # Get workspace
         workspace = get_user_workspace(request.user)
@@ -568,7 +651,6 @@ class LeadConversionAPIView(APIView):
             )
 
         # Use the conversion serializer
-        from .serializers import LeadConversionSerializer
 
         serializer = LeadConversionSerializer(
             data=request.data,

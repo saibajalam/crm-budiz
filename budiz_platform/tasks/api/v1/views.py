@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from workspaces.utils import get_user_workspace
 from tasks.models import Task
@@ -13,6 +14,11 @@ from .serializers import TaskSerializer
 class TaskListCreateAPIView(APIView):
     permission_classes = [IsAuthenticated, TaskAccessPermission]
 
+    @extend_schema(
+        responses={200: TaskSerializer(many=True)},
+        description="List all tasks in the workspace",
+        tags=["Tasks"],
+    )
     def get(self, request):
         workspace = get_user_workspace(request.user)
         if not workspace:
@@ -24,6 +30,12 @@ class TaskListCreateAPIView(APIView):
         serializer = TaskSerializer(tasks, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        request=TaskSerializer,
+        responses={201: TaskSerializer},
+        description="Create a new task",
+        tags=["Tasks"],
+    )
     def post(self, request):
         workspace = get_user_workspace(request.user)
         if not workspace:
@@ -49,8 +61,14 @@ class TaskDetailAPIView(APIView):
             return None
         task = get_object_or_404(Task, id=task_id, workspace=workspace)
         self.check_object_permissions(request, task)
+
         return task
 
+    @extend_schema(
+        responses={200: TaskSerializer},
+        description="Retrieve a specific task",
+        tags=["Tasks"],
+    )
     def get(self, request, task_id):
         task = self.get_object(request, task_id)
         if not task:
@@ -60,6 +78,12 @@ class TaskDetailAPIView(APIView):
             )
         return Response(TaskSerializer(task).data)
 
+    @extend_schema(
+        request=TaskSerializer,
+        responses={200: TaskSerializer},
+        description="Partially update a task",
+        tags=["Tasks"],
+    )
     def patch(self, request, task_id):
         task = self.get_object(request, task_id)
         if not task:
@@ -77,6 +101,11 @@ class TaskDetailAPIView(APIView):
         task = serializer.save()
         return Response(TaskSerializer(task).data)
 
+    @extend_schema(
+        responses={204: OpenApiResponse(description="Task deleted")},
+        description="Delete a task",
+        tags=["Tasks"],
+    )
     def delete(self, request, task_id):
         task = self.get_object(request, task_id)
         if not task:

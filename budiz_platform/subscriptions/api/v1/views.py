@@ -8,6 +8,7 @@ from subscriptions.services import (
     activate_subscription,
     activate_user_subscription,
 )
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 
 # Create your views here.
 
@@ -15,6 +16,14 @@ from subscriptions.services import (
 class CompanyStatusAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description="Company status retrieved"),
+            403: OpenApiResponse(description="User does not belong to a company"),
+        },
+        description="Get company trial and subscription status",
+        tags=["Subscriptions"],
+    )
     def get(self, request):
         if not hasattr(request.user, "owned_company"):
             return Response({"error": "User does not belong to a company"}, status=403)
@@ -33,6 +42,24 @@ class CompanyStatusAPIView(APIView):
 class ActivateSubscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="plan_id",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Subscription plan ID",
+                required=True,
+            ),
+        ],
+        responses={
+            200: OpenApiResponse(description="Subscription activated"),
+            400: OpenApiResponse(description="Invalid plan_id"),
+            404: OpenApiResponse(description="Plan not found"),
+        },
+        description="Activate a subscription plan for user or company",
+        tags=["Subscriptions"],
+    )
     def post(self, request):
         plan_id = request.data.get("plan_id")
 

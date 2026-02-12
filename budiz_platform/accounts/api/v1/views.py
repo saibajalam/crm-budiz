@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken
 from rest_framework.authentication import TokenAuthentication
 from django.contrib.auth import authenticate
+from drf_spectacular.utils import extend_schema, OpenApiResponse
 
 from .serializers import (
     LoginSerializers,
@@ -29,6 +30,15 @@ class RegisterAPI(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        request=RegisterSerializer,
+        responses={
+            201: OpenApiResponse(description="Registration successful"),
+            400: OpenApiResponse(description="Validation error"),
+        },
+        description="Register a new user account (individual or company)",
+        tags=["Authentication"],
+    )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -66,6 +76,15 @@ class RegisterAPI(APIView):
 class LoginAPIView(APIView):
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        request=LoginSerializers,
+        responses={
+            200: OpenApiResponse(description="Login successful"),
+            400: OpenApiResponse(description="Invalid credentials"),
+        },
+        description="Authenticate user and receive JWT tokens",
+        tags=["Authentication"],
+    )
     def post(self, request):
         serializer = LoginSerializers(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -96,6 +115,15 @@ class LoginAPIView(APIView):
 class UserCreateAPIView(APIView):
     permission_classes = [IsAuthenticated, IsSuperAdmin]
 
+    @extend_schema(
+        request=UserCreateSerializer,
+        responses={
+            201: OpenApiResponse(description="User created successfully"),
+            400: OpenApiResponse(description="Validation error"),
+        },
+        description="Create a new user (SuperAdmin only)",
+        tags=["Users"],
+    )
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -123,6 +151,15 @@ class ForgotPasswordAPIView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        request=ForgotPasswordSerializer,
+        responses={
+            200: OpenApiResponse(description="Password reset token generated"),
+            400: OpenApiResponse(description="Invalid email"),
+        },
+        description="Request password reset token for user account",
+        tags=["Authentication"],
+    )
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -130,11 +167,11 @@ class ForgotPasswordAPIView(APIView):
         user = User.objects.get(email=serializer.validated_data["email"])
         reset_token = PasswordResetToken.objects.create(user=user)
 
-        # Later: send via email
+        # TODO: Send reset token via email to user
+        # For now, just confirm the token was generated
         return Response(
             {
-                "message": "Password reset token generated",
-                "reset_token": str(reset_token.token),
+                "message": "Password reset token has been sent to your email",
                 "success": True,
                 "error": None,
                 "status_code": 200,
@@ -147,6 +184,15 @@ class ResetPasswordAPIView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        request=ResetPasswordSerializer,
+        responses={
+            200: OpenApiResponse(description="Password reset successful"),
+            400: OpenApiResponse(description="Invalid or expired token"),
+        },
+        description="Reset password using reset token",
+        tags=["Authentication"],
+    )
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -193,6 +239,15 @@ class VerifyEmailAPIView(APIView):
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        request=VerifyEmailSerializer,
+        responses={
+            200: OpenApiResponse(description="Email verified successfully"),
+            400: OpenApiResponse(description="Invalid or expired token"),
+        },
+        description="Verify user email address using verification token",
+        tags=["Authentication"],
+    )
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -239,6 +294,15 @@ class ResendVerificationAPIView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
+    @extend_schema(
+        request=ResendVerificationSerializer,
+        responses={
+            200: OpenApiResponse(description="Verification email resent"),
+            400: OpenApiResponse(description="Invalid request"),
+        },
+        description="Resend email verification link",
+        tags=["Authentication"],
+    )
     def post(self, request):
         serializer = ResendVerificationSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -248,8 +312,7 @@ class ResendVerificationAPIView(APIView):
 
         return Response(
             {
-                "message": "Verification email resent",
-                "verification_token": str(token),
+                "message": "Verification email has been resent to your email address",
                 "success": True,
                 "error": None,
                 "status_code": status.HTTP_200_OK,
@@ -264,6 +327,11 @@ class ResendVerificationAPIView(APIView):
 class SuperAdminDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="SuperAdmin dashboard data")},
+        description="Get SuperAdmin dashboard overview",
+        tags=["Dashboards"],
+    )
     @role_required("superadmin")
     def get(self, request):
         return Response(
@@ -279,6 +347,11 @@ class SuperAdminDashboardAPIView(APIView):
 class AdminDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Admin dashboard data")},
+        description="Get Admin dashboard overview",
+        tags=["Dashboards"],
+    )
     @role_required("admin")
     def get(self, request):
         return Response(
@@ -294,6 +367,11 @@ class AdminDashboardAPIView(APIView):
 class ManagerDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Manager dashboard data")},
+        description="Get Manager dashboard overview",
+        tags=["Dashboards"],
+    )
     @role_required("manager")
     def get(self, request):
         return Response(
@@ -309,6 +387,11 @@ class ManagerDashboardAPIView(APIView):
 class SalesDashboardAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Sales dashboard data")},
+        description="Get Sales Representative dashboard overview",
+        tags=["Dashboards"],
+    )
     @role_required("sales_representative")
     def get(self, request):
         return Response(

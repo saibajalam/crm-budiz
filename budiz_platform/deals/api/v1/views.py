@@ -3,6 +3,8 @@ from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema, OpenApiResponse
+from django.db import transaction
 
 from deals.models import Deal, DealActivity
 from .serializers import (
@@ -29,6 +31,12 @@ from django.db import transaction
 class CreateDealAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
 
+    @extend_schema(
+        request=CreateDealSerializer,
+        responses={201: DealDetailSerializer},
+        description="Create a new deal in the workspace",
+        tags=["Deals"],
+    )
     def post(self, request):
         workspace = get_user_workspace(request.user)
 
@@ -101,16 +109,31 @@ class CreateDealAPIView(APIView):
 class PipelineWiseDealListAPIView(ListAPIView):
     serializer_class = DealPipelineSerializer
     permission_classes = [IsAuthenticated, HasActiveSubscription, CanAssignDeal]
+    pagination_class = None  # Add pagination if needed
 
+    @extend_schema(
+        responses={200: DealPipelineSerializer(many=True)},
+        description="List deals grouped by pipeline stage",
+        tags=["Deals"],
+    )
     def get_queryset(self):
+        workspace = get_user_workspace(self.request.user)
+        if not workspace:
+            return Deal.objects.none()
+
         stage = self.request.query_params.get("pipeline_stage")
-        queryset = Deal.objects.all()  # only non-deleted deals
+        queryset = Deal.objects.filter(workspace=workspace)
 
         if stage:
             queryset = queryset.filter(pipeline_stage__iexact=stage)
 
         return queryset
 
+    @extend_schema(
+        responses={200: DealPipelineSerializer(many=True)},
+        description="List deals filtered by pipeline stage",
+        tags=["Deals"],
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
@@ -132,11 +155,22 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
     queryset = Deal.objects.all()
     lookup_url_kwarg = "deal_id"
 
+    def get_queryset(self):
+        workspace = get_user_workspace(self.request.user)
+        if not workspace:
+            return Deal.objects.none()
+        return Deal.objects.filter(workspace=workspace)
+
     def get_serializer_class(self):
         if self.request.method in ["PUT", "PATCH"]:
             return DealUpdateSerializer
         return DealDetailSerializer
 
+    @extend_schema(
+        responses={200: DealDetailSerializer},
+        description="Retrieve a specific deal",
+        tags=["Deals"],
+    )
     def retrieve(self, request, *args, **kwargs):
         deal = self.get_object()
         serializer = self.get_serializer(deal)
@@ -152,6 +186,12 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        request=DealUpdateSerializer,
+        responses={200: DealDetailSerializer},
+        description="Update a specific existing deal",
+        tags=["Deals"],
+    )
     def update(self, request, *args, **kwargs):
         kwargs["partial"] = True
         deal = self.get_object()
@@ -162,7 +202,7 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
 
         return Response(
             {
-                "message": "Detail updated successfully",
+                "message": "Deal updated successfully",
                 "data": response_serializer.data,
                 "success": True,
                 "error": None,
@@ -171,6 +211,11 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Deal deleted successfully")},
+        description="Soft delete a deal",
+        tags=["Deals"],
+    )
     def destroy(self, request, *args, **kwargs):
         deal = self.get_object()
         deal.soft_delete()
@@ -190,9 +235,29 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
 class DealRestoreAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, CanAssignDeal]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Deal restored successfully")},
+        description="Restore a soft-deleted deal",
+        tags=["Deals"],
+    )
     def post(self, request, deal_id):
+        workspace = get_user_workspace(request.user)
+        if not workspace:
+            return Response(
+                {
+                    "message": "No active workspace found",
+                    "data": None,
+                    "success": False,
+                    "error": True,
+                    "status_code": status.HTTP_400_BAD_REQUEST,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         try:
-            deal = Deal.all_objects.get(id=deal_id, is_deleted=True)
+            deal = Deal.all_objects.get(
+                id=deal_id, workspace=workspace, is_deleted=True
+            )
         except Deal.DoesNotExist:
             return Response(
                 {
@@ -230,6 +295,12 @@ class DealAssignmentUpdateAPIView(APIView):
         CanAssignDeal,
     ]
 
+    @extend_schema(
+        request=DealAssignmentSerializer,
+        responses={200: DealDetailSerializer},
+        description="Update deal assignment",
+        tags=["Deals"],
+    )
     def patch(self, request, deal_id):
         deal = get_object_or_404(Deal, id=deal_id)
 
@@ -260,6 +331,7 @@ class DealActivityFeedAPIView(ListAPIView):
 
     serializer_class = DealActivityFeedSerializer
     permission_classes = [IsAuthenticated, HasActiveSubscription, DealAccessPermission]
+    pagination_class = None  # Uses pagination from settings
 
     def get_queryset(self):
         user = self.request.user
@@ -282,6 +354,11 @@ class DealActivityFeedAPIView(ListAPIView):
 
         return queryset.order_by("-due_date")
 
+    @extend_schema(
+        responses={200: DealActivityFeedSerializer(many=True)},
+        description="Get deal activity feed with filters",
+        tags=["Deal Activities"],
+    )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
         page = self.paginate_queryset(queryset)
@@ -303,6 +380,12 @@ class DealActivityFeedAPIView(ListAPIView):
 class CreateDealActivityAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, DealAccessPermission]
 
+    @extend_schema(
+        request=CreateDealActivitySerializer,
+        responses={201: DealActivityFeedSerializer},
+        description="Create a new deal activity",
+        tags=["Deal Activities"],
+    )
     def post(self, request, deal_id):
         workspace = get_user_workspace(request.user)
         if not workspace:
@@ -374,6 +457,11 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             deal_id=deal_id, deal__workspace=workspace, is_deleted=False
         )
 
+    @extend_schema(
+        responses={200: DealActivityFeedSerializer},
+        description="Retrieve a specific deal activity",
+        tags=["Deal Activities"],
+    )
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         serializer = DealActivityFeedSerializer(instance)
@@ -386,6 +474,12 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             }
         )
 
+    @extend_schema(
+        request=UpdateDealActivitySerializer,
+        responses={200: DealActivityFeedSerializer},
+        description="Update a specific deal activity",
+        tags=["Deal Activities"],
+    )
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
@@ -407,6 +501,11 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             }
         )
 
+    @extend_schema(
+        responses={204: OpenApiResponse(description="Activity deleted successfully")},
+        description="Delete a specific deal activity",
+        tags=["Deal Activities"],
+    )
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         self.perform_destroy(instance)
@@ -423,6 +522,11 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
 class RestoreDealActivityAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription, DealAccessPermission]
 
+    @extend_schema(
+        responses={200: DealActivityFeedSerializer},
+        description="Restore a deleted deal activity",
+        tags=["Deal Activities"],
+    )
     def post(self, request, deal_id, activity_id):
         workspace = get_user_workspace(request.user)
         if not workspace:
