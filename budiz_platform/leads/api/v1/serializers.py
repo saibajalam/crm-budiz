@@ -12,6 +12,7 @@ from workspaces.models import WorkspaceMember
 from decimal import Decimal
 from django.db import transaction
 from leads.services.lead_service import create_lead
+from typing import Any, Dict, List, Optional
 
 
 class CreateLeadSerializer(serializers.ModelSerializer):
@@ -196,7 +197,7 @@ class LeadDetailSerializer(serializers.ModelSerializer):
 
         read_only_fields = fields
 
-    def get_created_by(self, obj):
+    def get_created_by(self, obj) -> Optional[Dict[str, Any]]:
         if obj.created_by:
             return {
                 "user_id": obj.created_by.id,
@@ -225,7 +226,7 @@ class LeadActivityListSerializer(serializers.ModelSerializer):
 
         read_only_fields = fields
 
-    def get_performed_by(self, obj):
+    def get_performed_by(self, obj) -> Optional[Dict[str, Any]]:
         user = obj.performed_by
         if not user:
             return None
@@ -235,7 +236,7 @@ class LeadActivityListSerializer(serializers.ModelSerializer):
             "email": user.email,
         }
 
-    def get_attachment(self, obj):
+    def get_attachment(self, obj) -> List[str]:
         request = self.context.get("request")
         files = obj.attachments.all()  # use the related_name
         return [
@@ -263,16 +264,16 @@ class LeadActivityFeedSerializer(serializers.ModelSerializer):
             "is_completed",
         ]
 
-    def get_lead_name(self, obj):
+    def get_lead_name(self, obj) -> str:
         return f"{obj.lead.first_name} {obj.lead.last_name}"
 
-    def get_is_upcoming(self, obj):
+    def get_is_upcoming(self, obj) -> bool:
         return obj.due_date > timezone.now() and not obj.is_completed
 
-    def get_is_overdue(self, obj):
+    def get_is_overdue(self, obj) -> bool:
         return obj.due_date < timezone.now() and not obj.is_completed
 
-    def get_is_completed(self, obj):
+    def get_is_completed(self, obj) -> bool:
         return obj.is_completed
 
 

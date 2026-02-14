@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+from importlib.util import find_spec
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # own installed apps
     "rest_framework",
+    "drf_spectacular",
     "accounts.apps.AccountsConfig",
     "leads.apps.LeadsConfig",
     "subscriptions.apps.SubscriptionsConfig",
@@ -51,6 +53,9 @@ INSTALLED_APPS = [
     "tasks.apps.TasksConfig",
 ]
 
+if find_spec("drf_spectacular_sidecar"):
+    INSTALLED_APPS.append("drf_spectacular_sidecar")
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -62,7 +67,7 @@ MIDDLEWARE = [
     "subscriptions.middleware.SubscriptionRequiredMiddleware",
 ]
 
-ROOT_URLCONF = "core.urls"
+ROOT_URLCONF = "config.urls"
 
 TEMPLATES = [
     {
@@ -79,7 +84,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "core.wsgi.application"
+WSGI_APPLICATION = "config.wsgi.application"
 
 
 # Database
@@ -146,6 +151,7 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "core.exception_handler.custom_exception_handler",
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
@@ -161,6 +167,38 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "CRM API",
+    "DESCRIPTION": "Multi-workspace CRM backend APIs",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [{"BearerAuth": []}],
+    "ENUM_NAME_OVERRIDES": {
+        "LeadStatusEnum": [
+            "new",
+            "contacted",
+            "qualified",
+            "converted",
+            "unqualified",
+            "lost",
+        ],
+        "DealActivityStatusEnum": ["pending", "in_progress", "completed"],
+        "TaskStatusEnum": ["open", "in_progress", "done"],
+        "LeadActivityTypeEnum": ["call", "email", "meeting", "note", "task"],
+        "DealActivityTypeEnum": ["call", "meeting", "email", "other"],
+    },
+    "COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
 }
 
 

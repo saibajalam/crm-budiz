@@ -9,6 +9,7 @@ from subscriptions.services import (
     activate_user_subscription,
 )
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from .serializers import ActivateSubscriptionSerializer
 
 # Create your views here.
 
@@ -23,6 +24,7 @@ class CompanyStatusAPIView(APIView):
         },
         description="Get company trial and subscription status",
         tags=["Subscriptions"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         if not hasattr(request.user, "owned_company"):
@@ -43,6 +45,7 @@ class ActivateSubscriptionAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
+        request=ActivateSubscriptionSerializer,
         parameters=[
             OpenApiParameter(
                 name="plan_id",
@@ -59,6 +62,7 @@ class ActivateSubscriptionAPIView(APIView):
         },
         description="Activate a subscription plan for user or company",
         tags=["Subscriptions"],
+        auth=[{"BearerAuth": []}],
     )
     def post(self, request):
         plan_id = request.data.get("plan_id")

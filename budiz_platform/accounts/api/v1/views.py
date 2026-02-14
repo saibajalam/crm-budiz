@@ -38,6 +38,7 @@ class RegisterAPI(APIView):
         },
         description="Register a new user account (individual or company)",
         tags=["Authentication"],
+        auth=[],
     )
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
@@ -84,6 +85,7 @@ class LoginAPIView(APIView):
         },
         description="Authenticate user and receive JWT tokens",
         tags=["Authentication"],
+        auth=[],
     )
     def post(self, request):
         serializer = LoginSerializers(data=request.data)
@@ -123,6 +125,7 @@ class UserCreateAPIView(APIView):
         },
         description="Create a new user (SuperAdmin only)",
         tags=["Users"],
+        auth=[{"BearerAuth": []}],
     )
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
@@ -159,6 +162,7 @@ class ForgotPasswordAPIView(APIView):
         },
         description="Request password reset token for user account",
         tags=["Authentication"],
+        auth=[],
     )
     def post(self, request):
         serializer = ForgotPasswordSerializer(data=request.data)
@@ -192,6 +196,7 @@ class ResetPasswordAPIView(APIView):
         },
         description="Reset password using reset token",
         tags=["Authentication"],
+        auth=[],
     )
     def post(self, request):
         serializer = ResetPasswordSerializer(data=request.data)
@@ -247,6 +252,7 @@ class VerifyEmailAPIView(APIView):
         },
         description="Verify user email address using verification token",
         tags=["Authentication"],
+        auth=[],
     )
     def post(self, request):
         serializer = VerifyEmailSerializer(data=request.data)
@@ -302,6 +308,7 @@ class ResendVerificationAPIView(APIView):
         },
         description="Resend email verification link",
         tags=["Authentication"],
+        auth=[],
     )
     def post(self, request):
         serializer = ResendVerificationSerializer(data=request.data)
@@ -331,6 +338,7 @@ class SuperAdminDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="SuperAdmin dashboard data")},
         description="Get SuperAdmin dashboard overview",
         tags=["Dashboards"],
+        auth=[{"BearerAuth": []}],
     )
     @role_required("superadmin")
     def get(self, request):
@@ -351,6 +359,7 @@ class AdminDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Admin dashboard data")},
         description="Get Admin dashboard overview",
         tags=["Dashboards"],
+        auth=[{"BearerAuth": []}],
     )
     @role_required("admin")
     def get(self, request):
@@ -371,6 +380,7 @@ class ManagerDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Manager dashboard data")},
         description="Get Manager dashboard overview",
         tags=["Dashboards"],
+        auth=[{"BearerAuth": []}],
     )
     @role_required("manager")
     def get(self, request):
@@ -391,6 +401,7 @@ class SalesDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Sales dashboard data")},
         description="Get Sales Representative dashboard overview",
         tags=["Dashboards"],
+        auth=[{"BearerAuth": []}],
     )
     @role_required("sales_representative")
     def get(self, request):

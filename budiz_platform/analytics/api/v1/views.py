@@ -11,6 +11,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter
 from django.core.cache import cache
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from common.swagger import workspace_header
 
 
 from leads.models import Lead, LeadActivity
@@ -41,6 +42,7 @@ class AnalyticsDashboardAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days",
                 type=int,
@@ -51,6 +53,7 @@ class AnalyticsDashboardAPIView(APIView):
         responses={200: AnalyticsSummarySerializer},
         description="Get analytics dashboard summary with deals and leads statistics",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -131,6 +134,7 @@ class DealAnalyticsListAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="start_date",
                 type=str,
@@ -147,6 +151,7 @@ class DealAnalyticsListAPIView(APIView):
         responses={200: DealAnalyticsSerializer(many=True)},
         description="Get daily deal analytics with aggregated metrics",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -191,6 +196,7 @@ class UserAnalyticsListAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days",
                 type=int,
@@ -201,6 +207,7 @@ class UserAnalyticsListAPIView(APIView):
         responses={200: UserAnalyticsSerializer(many=True)},
         description="Get user-wise analytics for deals and revenue",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -243,6 +250,7 @@ class UserAnalyticsDetailAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days",
                 type=int,
@@ -253,6 +261,7 @@ class UserAnalyticsDetailAPIView(APIView):
         responses={200: UserAnalyticsSerializer},
         description="Get detailed analytics for a specific user",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request, user_id):
         # 1️⃣ Get current workspace
@@ -333,6 +342,7 @@ class AnalyticsTrendsAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days", type=int, description="Number of days", required=False
             ),
@@ -346,6 +356,7 @@ class AnalyticsTrendsAPIView(APIView):
         responses={200: OpenApiResponse(description="Trend data")},
         description="Get analytics trends over time",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -383,6 +394,8 @@ class FormTrendAPIView(APIView):
         responses={200: OpenApiResponse(description="Form submission trends")},
         description="Get form submission trends over time",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def get(self, request, form_id):
         workspace = get_user_workspace(request.user)
@@ -404,6 +417,7 @@ class FormConversionFunnelAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days", type=int, description="Number of days", required=False
             ),
@@ -411,6 +425,7 @@ class FormConversionFunnelAPIView(APIView):
         responses={200: OpenApiResponse(description="Form conversion funnel data")},
         description="Get conversion funnel analytics for a specific form",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request, form_id):
         workspace = get_user_workspace(request.user)
@@ -482,6 +497,8 @@ class UserConversionFunnelAPIView(APIView):
         responses={200: OpenApiResponse(description="User funnel analytics")},
         description="Get conversion funnel analytics for current user",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -505,6 +522,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days", type=int, description="Number of days", required=False
             ),
@@ -512,6 +530,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Workspace funnel dashboard data")},
         description="Get comprehensive workspace funnel dashboard with conversion metrics",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -627,6 +646,7 @@ class TimeToConversionAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days", type=int, description="Number of days", required=False
             ),
@@ -634,6 +654,7 @@ class TimeToConversionAPIView(APIView):
         responses={200: OpenApiResponse(description="Time to conversion analytics")},
         description="Get time-to-conversion analytics",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -659,6 +680,7 @@ class RevenueDashboardAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days", type=int, description="Number of days", required=False
             ),
@@ -666,6 +688,7 @@ class RevenueDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Revenue dashboard data")},
         description="Get revenue dashboard with financial metrics",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -696,6 +719,7 @@ class UnifiedDashboardAPIView(APIView):
 
     @extend_schema(
         parameters=[
+            workspace_header,
             OpenApiParameter(
                 name="days", type=int, description="Number of days", required=False
             ),
@@ -703,6 +727,7 @@ class UnifiedDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Unified dashboard data")},
         description="Get unified workspace analytics dashboard with cached data",
         tags=["Analytics"],
+        auth=[{"BearerAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)

@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, OpenApiResponse
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from common.swagger import workspace_header
 
 from workspaces.utils import get_user_workspace
 from tasks.models import Task
@@ -18,6 +19,16 @@ class TaskListCreateAPIView(APIView):
         responses={200: TaskSerializer(many=True)},
         description="List all tasks in the workspace",
         tags=["Tasks"],
+        auth=[{"BearerAuth": []}],
+        parameters=[
+            workspace_header,
+            OpenApiParameter(
+                name="page",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+        ],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -35,6 +46,8 @@ class TaskListCreateAPIView(APIView):
         responses={201: TaskSerializer},
         description="Create a new task",
         tags=["Tasks"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def post(self, request):
         workspace = get_user_workspace(request.user)
@@ -68,6 +81,8 @@ class TaskDetailAPIView(APIView):
         responses={200: TaskSerializer},
         description="Retrieve a specific task",
         tags=["Tasks"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def get(self, request, task_id):
         task = self.get_object(request, task_id)
@@ -83,6 +98,8 @@ class TaskDetailAPIView(APIView):
         responses={200: TaskSerializer},
         description="Partially update a task",
         tags=["Tasks"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def patch(self, request, task_id):
         task = self.get_object(request, task_id)
@@ -105,6 +122,8 @@ class TaskDetailAPIView(APIView):
         responses={204: OpenApiResponse(description="Task deleted")},
         description="Delete a task",
         tags=["Tasks"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def delete(self, request, task_id):
         task = self.get_object(request, task_id)

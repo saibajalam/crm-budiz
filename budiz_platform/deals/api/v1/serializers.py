@@ -21,7 +21,7 @@ PIPELINE_STAGES = [
 
 class CreateDealSerializer(serializers.ModelSerializer):
     assigned_to = serializers.IntegerField(required=False, write_only=True)
-    display_id = serializers.ReadOnlyField()
+    display_id = serializers.CharField(read_only=True)
 
     class Meta:
         model = Deal
@@ -230,13 +230,13 @@ class DealActivityFeedSerializer(serializers.ModelSerializer):
             "is_completed",
         ]
 
-    def get_is_upcoming(self, obj):
+    def get_is_upcoming(self, obj) -> bool:
         return obj.due_date > timezone.now() and obj.status != "completed"
 
-    def get_is_overdue(self, obj):
+    def get_is_overdue(self, obj) -> bool:
         return obj.due_date < timezone.now() and obj.status != "completed"
 
-    def get_is_completed(self, obj):
+    def get_is_completed(self, obj) -> bool:
         return obj.status == "completed"
 
 

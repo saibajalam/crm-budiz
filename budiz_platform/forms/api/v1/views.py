@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import status
 from rest_framework.throttling import AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiResponse
+from common.swagger import workspace_header
 from django.conf import settings
 
 from workspaces.permissions import IsWorkspaceMember
@@ -48,6 +49,7 @@ class PublicFormSubmitAPIView(APIView):
         },
         description="Submit a public form (no authentication required)",
         tags=["Forms"],
+        auth=[],
     )
     def post(self, request, slug):
         form = get_object_or_404(Form, slug=slug, is_active=True)
@@ -85,6 +87,8 @@ class CreateFormAPIView(APIView):
         responses={201: CreateFormSerializer},
         description="Create a new form in workspace",
         tags=["Forms"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def post(self, request):
         workspace = get_user_workspace(request.user)
@@ -114,6 +118,8 @@ class AddFieldAPIView(APIView):
         responses={201: AddFieldSerializer},
         description="Add field to existing form",
         tags=["Forms"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def post(self, request, form_id):
         workspace = get_user_workspace(request.user)
@@ -142,6 +148,8 @@ class UpdateFormAssignmentAPIView(APIView):
         responses={200: OpenApiResponse(description="Assignment updated successfully")},
         description="Update form assignment settings",
         tags=["Forms"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def patch(self, request, form_id):
         workspace = get_user_workspace(request.user)
@@ -168,6 +176,8 @@ class FormEmbedAPIView(APIView):
         responses={200: OpenApiResponse(description="Form embed code retrieved")},
         description="Get embed code for form integration",
         tags=["Forms"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def get(self, request, form_id):
         workspace = get_user_workspace(request.user)

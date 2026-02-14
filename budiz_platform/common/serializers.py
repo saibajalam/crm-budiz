@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
 class SimpleUserSerializer(serializers.ModelSerializer):
     name = serializers.SerializerMethodField()
 
@@ -11,5 +12,5 @@ class SimpleUserSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "name", "email")
 
-    def get_name(self, obj):
+    def get_name(self, obj) -> str:
         return obj.get_full_name() if hasattr(obj, "get_full_name") else obj.email

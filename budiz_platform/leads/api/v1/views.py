@@ -1,4 +1,5 @@
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from common.swagger import workspace_header
 from rest_framework.generics import (
     ListCreateAPIView,
     RetrieveUpdateDestroyAPIView,
@@ -66,7 +67,45 @@ class LeadListCreateAPIView(ListCreateAPIView):
         This API is to retrieve the details of leads provided in the URL.
         """,
         summary="EP-LEAD-01",
-        request=LeadListSerializer,
+        responses={
+            200: LeadListSerializer(many=True),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[
+            workspace_header,
+            OpenApiParameter(
+                name="search",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+            OpenApiParameter(
+                name="status",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+            OpenApiParameter(
+                name="source",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+            OpenApiParameter(
+                name="page",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+        ],
     )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -89,6 +128,14 @@ class LeadListCreateAPIView(ListCreateAPIView):
         """,
         summary="EP-LEAD-02",
         request=CreateLeadSerializer,
+        responses={
+            201: LeadDetailSerializer,
+            400: OpenApiResponse(description="Validation error"),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -144,7 +191,14 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         This API is to retrieve the details of an individual lead.
         """,
         summary="EP-LEAD-03",
-        request=LeadDetailSerializer,
+        responses={
+            200: LeadDetailSerializer,
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def retrieve(self, request, *args, **kwargs):
         lead = self.get_object()
@@ -167,6 +221,15 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         """,
         summary="EP-LEAD-04",
         request=LeadUpdateSerializer,
+        responses={
+            200: LeadDetailSerializer,
+            400: OpenApiResponse(description="Validation error"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def update(self, request, *args, **kwargs):
         kwargs["partial"] = True
@@ -194,6 +257,14 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         This API is to delete an existing lead.
         """,
         summary="EP-LEAD-05",
+        responses={
+            200: OpenApiResponse(description="Lead deleted successfully"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def destroy(self, request, *args, **kwargs):
         lead = self.get_object()
@@ -223,6 +294,15 @@ class LeadRestoreAPIView(APIView):
         This API is to restore a deleted lead.
         """,
         summary="EP-LEADRESTORE-01",
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Lead restored successfully"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def post(self, request, lead_id):
         try:
@@ -304,7 +384,22 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
         This API is to retrieve lead-related activities.
         """,
         summary="EP-LEADACTIVITY-01",
-        request=LeadActivityListSerializer,
+        responses={
+            200: LeadActivityListSerializer(many=True),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[
+            workspace_header,
+            OpenApiParameter(
+                name="page",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+        ],
     )
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()
@@ -327,6 +422,15 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
         """,
         summary="EP-LEADACTIVITY-02",
         request=LeadActivityCreateSerializer,
+        responses={
+            201: LeadActivityListSerializer,
+            400: OpenApiResponse(description="Validation error"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -424,7 +528,14 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         This API is to retrieve a specific lead-related activity.
         """,
         summary="EP-LEADACTIVITY-03",
-        request=LeadActivityListSerializer,
+        responses={
+            200: LeadActivityListSerializer,
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Activity not found"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def retrieve(self, request, *args, **kwargs):
         activity = self.get_object()
@@ -447,6 +558,15 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         """,
         summary="EP-LEADACTIVITY-04",
         request=LeadActivityUpdateSerializer,
+        responses={
+            200: LeadActivityListSerializer,
+            400: OpenApiResponse(description="Validation error"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Activity not found"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def update(self, request, *args, **kwargs):
         kwargs["partial"] = True
@@ -481,6 +601,14 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         This API is to delete a specific lead-related activity.
         """,
         summary="EP-LEADACTIVITY-05",
+        responses={
+            200: OpenApiResponse(description="Activity deleted successfully"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Activity not found"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def destroy(self, request, *args, **kwargs):
         activity = self.get_object()
@@ -506,6 +634,15 @@ class LeadActivityRestoreAPIView(APIView):
         This API is to restore a specific lead-related activity.
         """,
         summary="EP-LEADACTIVITY-06",
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Activity restored successfully"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Activity not found"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def post(self, request, activity_id):
         try:
@@ -580,7 +717,27 @@ class LeadActivityFeedAPIView(ListAPIView):
         This API is to retrieve lead-related activities.
         """,
         summary="EP-LEADACTIVITY-07",
-        request=LeadActivityListSerializer,
+        responses={
+            200: LeadActivityFeedSerializer(many=True),
+            403: OpenApiResponse(description="Permission denied"),
+        },
+        tags=["Lead Activities"],
+        auth=[{"BearerAuth": []}],
+        parameters=[
+            workspace_header,
+            OpenApiParameter(
+                name="category",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+            OpenApiParameter(
+                name="page",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                required=False,
+            ),
+        ],
     )
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -618,6 +775,15 @@ class LeadConversionAPIView(APIView):
         """,
         summary="EP-LEADCONVERSION-01",
         request=LeadConversionSerializer,
+        responses={
+            201: OpenApiResponse(description="Lead converted to deal"),
+            400: OpenApiResponse(description="Validation error"),
+            403: OpenApiResponse(description="Permission denied"),
+            404: OpenApiResponse(description="Lead not found"),
+        },
+        tags=["Leads"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     @transaction.atomic
     def post(self, request, lead_id):

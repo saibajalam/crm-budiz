@@ -1,0 +1,3926 @@
+openapi: 3.0.3
+info:
+  title: CRM API
+  version: 1.0.0
+  description: Multi-workspace CRM backend APIs
+paths:
+  /api/activate_subscription/:
+    post:
+      operationId: activate_subscription_create
+      description: Activate a subscription plan for user or company
+      parameters:
+      - in: query
+        name: plan_id
+        schema:
+          type: string
+        description: Subscription plan ID
+        required: true
+      tags:
+      - Subscriptions
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateSubscriptionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ActivateSubscriptionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ActivateSubscriptionRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Subscription activated
+        '400':
+          description: Invalid plan_id
+        '404':
+          description: Plan not found
+  /api/admin/:
+    get:
+      operationId: admin_retrieve
+      description: Get Admin dashboard overview
+      tags:
+      - Dashboards
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Admin dashboard data
+  /api/analytics/dashboard/:
+    get:
+      operationId: analytics_dashboard_retrieve
+      description: Get analytics dashboard summary with deals and leads statistics
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days for analytics
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalyticsSummary'
+          description: ''
+  /api/analytics/deals/:
+    get:
+      operationId: analytics_deals_list
+      description: Get daily deal analytics with aggregated metrics
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: end_date
+        schema:
+          type: string
+        description: End date (YYYY-MM-DD)
+      - in: query
+        name: start_date
+        schema:
+          type: string
+        description: Start date (YYYY-MM-DD)
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DealAnalytics'
+          description: ''
+  /api/analytics/trends/:
+    get:
+      operationId: analytics_trends_retrieve
+      description: Get analytics trends over time
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days
+      - in: query
+        name: metric
+        schema:
+          type: string
+        description: Metric type (won_value, total_deals)
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Trend data
+  /api/analytics/users/:
+    get:
+      operationId: analytics_users_list
+      description: Get user-wise analytics for deals and revenue
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days for analytics
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAnalytics'
+          description: ''
+  /api/analytics/users/{user_id}/:
+    get:
+      operationId: analytics_users_retrieve
+      description: Get detailed analytics for a specific user
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days for analytics
+      - in: path
+        name: user_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserAnalytics'
+          description: ''
+  /api/company_status/:
+    get:
+      operationId: company_status_retrieve
+      description: Get company trial and subscription status
+      tags:
+      - Subscriptions
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Company status retrieved
+        '403':
+          description: User does not belong to a company
+  /api/create-user/:
+    post:
+      operationId: create_user_create
+      description: Create a new user (SuperAdmin only)
+      tags:
+      - Users
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UserCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          description: User created successfully
+        '400':
+          description: Validation error
+  /api/deals/:
+    post:
+      operationId: deals_create
+      description: Create a new deal in the workspace
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      tags:
+      - Deals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDealRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateDealRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateDealRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealDetail'
+          description: ''
+  /api/deals/{deal_id}/:
+    get:
+      operationId: deals_retrieve
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealDetail'
+          description: ''
+    put:
+      operationId: deals_update
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DealUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DealUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DealUpdateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealUpdate'
+          description: ''
+    patch:
+      operationId: deals_partial_update
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDealUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDealUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDealUpdateRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealUpdate'
+          description: ''
+    delete:
+      operationId: deals_destroy
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/deals/{deal_id}/activities/:
+    post:
+      operationId: deals_activities_create
+      description: Create a new deal activity
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Deal Activities
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDealActivityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateDealActivityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateDealActivityRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealActivityFeed'
+          description: ''
+  /api/deals/{deal_id}/activities/{activity_id}/restore/:
+    post:
+      operationId: deals_activities_restore_create
+      description: Restore a deleted deal activity
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: activity_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Deal Activities
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealActivityFeed'
+          description: ''
+  /api/deals/{deal_id}/activities/{id}/:
+    get:
+      operationId: deals_activities_retrieve
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDealActivity'
+          description: ''
+    put:
+      operationId: deals_activities_update
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDealActivityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/UpdateDealActivityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UpdateDealActivityRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDealActivity'
+          description: ''
+    patch:
+      operationId: deals_activities_partial_update
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateDealActivityRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateDealActivityRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateDealActivityRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDealActivity'
+          description: ''
+    delete:
+      operationId: deals_activities_destroy
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/deals/{deal_id}/activity-feed/:
+    get:
+      operationId: deals_activity_feed_list
+      parameters:
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - deals
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DealActivityFeed'
+          description: ''
+  /api/deals/{deal_id}/assign/:
+    patch:
+      operationId: deals_assign_partial_update
+      description: Update deal assignment
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Deals
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedDealAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedDealAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedDealAssignmentRequest'
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DealDetail'
+          description: ''
+  /api/deals/{deal_id}/restore/:
+    post:
+      operationId: deals_restore_create
+      description: Restore a soft-deleted deal
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: deal_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Deals
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Deal restored successfully
+  /api/deals/pipeline/:
+    get:
+      operationId: deals_pipeline_list
+      tags:
+      - deals
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DealPipeline'
+          description: ''
+  /api/forgot-password/:
+    post:
+      operationId: forgot_password_create
+      description: Request password reset token for user account
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Password reset token generated
+        '400':
+          description: Invalid email
+  /api/forms/{form_id}/add-field/:
+    post:
+      operationId: forms_add_field_create
+      description: Add field to existing form
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: form_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddFieldRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AddFieldRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AddFieldRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddField'
+          description: ''
+  /api/forms/{form_id}/conversion-funnel/:
+    get:
+      operationId: forms_conversion_funnel_retrieve
+      description: Get conversion funnel analytics for a specific form
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days
+      - in: path
+        name: form_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Form conversion funnel data
+  /api/forms/{form_id}/embed/:
+    get:
+      operationId: forms_embed_retrieve
+      description: Get embed code for form integration
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: form_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Forms
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Form embed code retrieved
+  /api/forms/{form_id}/trend/:
+    get:
+      operationId: forms_trend_retrieve
+      description: Get form submission trends over time
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: form_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Form submission trends
+  /api/forms/{form_id}/update-assignment/:
+    patch:
+      operationId: forms_update_assignment_partial_update
+      description: Update form assignment settings
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: form_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateFormAssignmentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateFormAssignmentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedUpdateFormAssignmentRequest'
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Assignment updated successfully
+  /api/forms/create/:
+    post:
+      operationId: forms_create_create
+      description: Create a new form in workspace
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFormRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateFormRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateFormRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateForm'
+          description: ''
+  /api/leads/:
+    get:
+      operationId: leads_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      - name: search
+        required: false
+        in: query
+        description: A search term.
+        schema:
+          type: string
+      - in: query
+        name: source
+        schema:
+          type: string
+          enum:
+          - cold_call
+          - email_campaign
+          - event
+          - other
+          - referral
+          - social_media
+          - website
+        description: |-
+          * `website` - Website
+          * `referral` - Referral
+          * `social_media` - Social Media
+          * `email_campaign` - Email Campaign
+          * `event` - Event
+          * `cold_call` - Cold Call
+          * `other` - Other
+
+          * `website` - Website
+          * `referral` - Referral
+          * `social_media` - Social Media
+          * `email_campaign` - Email Campaign
+          * `event` - Event
+          * `cold_call` - Cold Call
+          * `other` - Other
+      - in: query
+        name: status
+        schema:
+          type: string
+          enum:
+          - contacted
+          - converted
+          - lost
+          - new
+          - qualified
+          - unqualified
+        description: |-
+          * `new` - New
+          * `contacted` - Contacted
+          * `qualified` - Qualified
+          * `converted` - Converted
+          * `unqualified` - Unqualified
+          * `lost` - Lost
+
+          * `new` - New
+          * `contacted` - Contacted
+          * `qualified` - Qualified
+          * `converted` - Converted
+          * `unqualified` - Unqualified
+          * `lost` - Lost
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLeadListList'
+          description: ''
+    post:
+      operationId: leads_create
+      tags:
+      - leads
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CreateLeadRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateLead'
+          description: ''
+  /api/leads/{lead_id}/:
+    get:
+      operationId: leads_retrieve
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadDetail'
+          description: ''
+    put:
+      operationId: leads_update
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LeadUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeadUpdateRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadUpdate'
+          description: ''
+    patch:
+      operationId: leads_partial_update
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedLeadUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLeadUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLeadUpdateRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadUpdate'
+          description: ''
+    delete:
+      operationId: leads_destroy
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/leads/{lead_id}/activities/:
+    get:
+      operationId: leads_activities_list
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Number of results to return per page.
+        schema:
+          type: integer
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedLeadActivityListList'
+          description: ''
+    post:
+      operationId: leads_activities_create
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeadActivityCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LeadActivityCreateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadActivityCreate'
+          description: ''
+  /api/leads/{lead_id}/activities/{activity_id}/:
+    get:
+      operationId: leads_activities_retrieve
+      parameters:
+      - in: path
+        name: activity_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadActivityList'
+          description: ''
+    put:
+      operationId: leads_activities_update
+      parameters:
+      - in: path
+        name: activity_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeadActivityUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LeadActivityUpdateRequest'
+        required: true
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadActivityUpdate'
+          description: ''
+    patch:
+      operationId: leads_activities_partial_update
+      parameters:
+      - in: path
+        name: activity_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedLeadActivityUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedLeadActivityUpdateRequest'
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeadActivityUpdate'
+          description: ''
+    delete:
+      operationId: leads_activities_destroy
+      parameters:
+      - in: path
+        name: activity_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/leads/{lead_id}/activity-feed/:
+    get:
+      operationId: leads_activity_feed_list
+      parameters:
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - leads
+      security:
+      - jwtAuth: []
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LeadActivityFeed'
+          description: ''
+  /api/leads/{lead_id}/convert/:
+    post:
+      operationId: API To CONVERT lead to deal
+      description: "\n        This API is to convert a qualified lead to a deal.\n\
+        \        "
+      summary: EP-LEADCONVERSION-01
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Leads
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LeadConversionRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LeadConversionRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LeadConversionRequest'
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          description: Lead converted to deal
+        '400':
+          description: Validation error
+        '403':
+          description: Permission denied
+        '404':
+          description: Lead not found
+  /api/leads/{lead_id}/restore/:
+    post:
+      operationId: API To RESTORE individual lead
+      description: "\n        This API is to restore a deleted lead.\n        "
+      summary: EP-LEADRESTORE-01
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: lead_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Leads
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Lead restored successfully
+        '403':
+          description: Permission denied
+        '404':
+          description: Lead not found
+  /api/leads/activities/{activity_id}/restore/:
+    post:
+      operationId: API To RESTORE lead-related activity
+      description: "\n        This API is to restore a specific lead-related activity.\n\
+        \        "
+      summary: EP-LEADACTIVITY-06
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: activity_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Lead Activities
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Activity restored successfully
+        '403':
+          description: Permission denied
+        '404':
+          description: Activity not found
+  /api/login:
+    post:
+      operationId: login_create
+      description: Authenticate user and receive JWT tokens
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginSerializersRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/LoginSerializersRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/LoginSerializersRequest'
+        required: true
+      responses:
+        '200':
+          description: Login successful
+        '400':
+          description: Invalid credentials
+  /api/manager/:
+    get:
+      operationId: manager_retrieve
+      description: Get Manager dashboard overview
+      tags:
+      - Dashboards
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Manager dashboard data
+  /api/public/forms/{slug}/submit/:
+    post:
+      operationId: submit_public_form
+      description: Submit a public form (no authentication required)
+      parameters:
+      - in: path
+        name: slug
+        schema:
+          type: string
+        required: true
+      tags:
+      - Forms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicFormSubmitRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PublicFormSubmitRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PublicFormSubmitRequest'
+        required: true
+      responses:
+        '201':
+          description: Form submitted successfully
+        '400':
+          description: Validation error
+        '404':
+          description: Form not found or inactive
+  /api/register/:
+    post:
+      operationId: register_create
+      description: Register a new user account (individual or company)
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: Registration successful
+        '400':
+          description: Validation error
+  /api/resend-verification/:
+    post:
+      operationId: resend_verification_create
+      description: Resend email verification link
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResendVerificationRequest'
+        required: true
+      responses:
+        '200':
+          description: Verification email resent
+        '400':
+          description: Invalid request
+  /api/reset-password/:
+    post:
+      operationId: reset_password_create
+      description: Reset password using reset token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+        required: true
+      responses:
+        '200':
+          description: Password reset successful
+        '400':
+          description: Invalid or expired token
+  /api/rules/:
+    get:
+      operationId: rules_list
+      description: List all automation rules in the workspace
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      tags:
+      - Automation
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    post:
+      operationId: rules_create
+      description: Create a new automation rule
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      tags:
+      - Automation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AutomationRuleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/AutomationRuleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/AutomationRuleRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+  /api/rules/{rule_id}/:
+    get:
+      operationId: rules_retrieve
+      description: Retrieve a specific automation rule
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Automation
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    patch:
+      operationId: rules_partial_update
+      description: Partially update an automation rule
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Automation
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationRuleRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationRuleRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAutomationRuleRequest'
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AutomationRule'
+          description: ''
+    delete:
+      operationId: rules_destroy
+      description: Delete an automation rule
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Automation
+      security:
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Automation rule deleted
+  /api/rules/{rule_id}/toggle/:
+    patch:
+      operationId: rules_toggle_partial_update
+      description: Toggle automation rule active status
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: rule_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Automation
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Automation rule toggled
+  /api/sales/:
+    get:
+      operationId: sales_retrieve
+      description: Get Sales Representative dashboard overview
+      tags:
+      - Dashboards
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Sales dashboard data
+  /api/superadmin/:
+    get:
+      operationId: superadmin_retrieve
+      description: Get SuperAdmin dashboard overview
+      tags:
+      - Dashboards
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: SuperAdmin dashboard data
+  /api/tasks/:
+    get:
+      operationId: tasks_list
+      description: List all tasks in the workspace
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: page
+        schema:
+          type: integer
+      tags:
+      - Tasks
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
+          description: ''
+    post:
+      operationId: tasks_create
+      description: Create a new task
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      tags:
+      - Tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+  /api/tasks/{task_id}/:
+    get:
+      operationId: tasks_retrieve
+      description: Retrieve a specific task
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: task_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Tasks
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    patch:
+      operationId: tasks_partial_update
+      description: Partially update a task
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: task_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Tasks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedTaskRequest'
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
+          description: ''
+    delete:
+      operationId: tasks_destroy
+      description: Delete a task
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: task_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Tasks
+      security:
+      - BearerAuth: []
+      responses:
+        '204':
+          description: Task deleted
+  /api/verify-email/:
+    post:
+      operationId: verify_email_create
+      description: Verify user email address using verification token
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VerifyEmailRequest'
+        required: true
+      responses:
+        '200':
+          description: Email verified successfully
+        '400':
+          description: Invalid or expired token
+  /api/workspace/funnel-dashboard/:
+    get:
+      operationId: workspace_funnel_dashboard_retrieve
+      description: Get comprehensive workspace funnel dashboard with conversion metrics
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Workspace funnel dashboard data
+  /api/workspace/revenue-dashboard/:
+    get:
+      operationId: workspace_revenue_dashboard_retrieve
+      description: Get revenue dashboard with financial metrics
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Revenue dashboard data
+  /api/workspace/time-to-conversion/:
+    get:
+      operationId: workspace_time_to_conversion_retrieve
+      description: Get time-to-conversion analytics
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Time to conversion analytics
+  /api/workspace/unified-dashboard/:
+    get:
+      operationId: workspace_unified_dashboard_retrieve
+      description: Get unified workspace analytics dashboard with cached data
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: query
+        name: days
+        schema:
+          type: integer
+        description: Number of days
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Unified dashboard data
+  /api/workspace/users/conversion-funnel/:
+    get:
+      operationId: workspace_users_conversion_funnel_retrieve
+      description: Get conversion funnel analytics for current user
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      tags:
+      - Analytics
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: User funnel analytics
+  /api/workspaces/:
+    post:
+      operationId: workspaces_create
+      description: Create a new workspace
+      tags:
+      - Workspaces
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceCreateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkspaceCreateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkspaceCreateRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkspaceCreate'
+          description: ''
+  /api/workspaces/{invite_id}/resend/:
+    post:
+      operationId: workspaces_resend_create
+      description: Resend workspace invitation email
+      parameters:
+      - in: path
+        name: invite_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Workspaces
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Invite resent successfully
+        '400':
+          description: Invite already accepted
+        '404':
+          description: Invite not found
+  /api/workspaces/{workspace_id}/invite-email/:
+    post:
+      operationId: workspaces_invite_email_create
+      description: Send email invitation to join workspace
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: workspace_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Workspaces
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkspaceEmailInviteRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/WorkspaceEmailInviteRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/WorkspaceEmailInviteRequest'
+        required: true
+      security:
+      - BearerAuth: []
+      responses:
+        '201':
+          description: Workspace invitation sent
+        '404':
+          description: Workspace not found
+  /api/workspaces/{workspace_id}/members/{member_id}/role/:
+    patch:
+      operationId: workspaces_members_role_partial_update
+      description: Update workspace member role
+      parameters:
+      - in: header
+        name: X-Workspace-ID
+        schema:
+          type: integer
+        description: Workspace ID for multi-tenant isolation
+      - in: path
+        name: member_id
+        schema:
+          type: integer
+        required: true
+      - in: path
+        name: workspace_id
+        schema:
+          type: integer
+        required: true
+      tags:
+      - Workspaces
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkspaceMemberRoleUpdateRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkspaceMemberRoleUpdateRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkspaceMemberRoleUpdateRequest'
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Member role updated
+        '400':
+          description: Cannot change owner role
+        '404':
+          description: Workspace or member not found
+  /api/workspaces/invite/accept/{token}/:
+    post:
+      operationId: acceptWorkspaceInvite
+      description: Accept workspace invitation using token
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - Workspaces
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: Invitation accepted
+        '400':
+          description: Invalid or expired invite
+        '403':
+          description: Email mismatch
+components:
+  schemas:
+    AccountTypeEnum:
+      enum:
+      - individual
+      - company
+      type: string
+      description: |-
+        * `individual` - Individual
+        * `company` - Company
+    ActionTypeEnum:
+      enum:
+      - assign_user
+      - send_email
+      - create_task
+      - webhook
+      - update_field
+      type: string
+      description: |-
+        * `assign_user` - Assign User
+        * `send_email` - Send Email
+        * `create_task` - Create Task
+        * `webhook` - Webhook
+        * `update_field` - Update Field
+    ActivateSubscriptionRequest:
+      type: object
+      properties:
+        plan_id:
+          type: string
+          minLength: 1
+      required:
+      - plan_id
+    AddField:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        options:
+          type: string
+          nullable: true
+        is_required:
+          type: boolean
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        map_to_lead_field:
+          $ref: '#/components/schemas/MapToLeadFieldEnum'
+      required:
+      - field_type
+      - label
+    AddFieldRequest:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 255
+        field_type:
+          $ref: '#/components/schemas/FieldTypeEnum'
+        options:
+          type: string
+          nullable: true
+        is_required:
+          type: boolean
+        order:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+        map_to_lead_field:
+          $ref: '#/components/schemas/MapToLeadFieldEnum'
+      required:
+      - field_type
+      - label
+    AnalyticsSummary:
+      type: object
+      description: Serializer for analytics summary/dashboard data
+      properties:
+        total_deals:
+          type: integer
+        total_pipeline_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        won_deals:
+          type: integer
+        won_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        lost_deals:
+          type: integer
+        win_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        leads_converted:
+          type: integer
+        conversion_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        total_qualified_leads:
+          type: integer
+        active_users:
+          type: integer
+        total_activities:
+          type: integer
+        avg_deals_per_user:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        deals_growth:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        revenue_growth:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+      required:
+      - active_users
+      - avg_deals_per_user
+      - conversion_rate
+      - leads_converted
+      - lost_deals
+      - total_activities
+      - total_deals
+      - total_pipeline_value
+      - total_qualified_leads
+      - win_rate
+      - won_deals
+      - won_value
+    AssignmentTypeEnum:
+      enum:
+      - none
+      - fixed
+      - round_robin
+      type: string
+      description: |-
+        * `none` - none
+        * `fixed` - fixed
+        * `round_robin` - round_robin
+    AutomationAction:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        action_type:
+          $ref: '#/components/schemas/ActionTypeEnum'
+        params:
+          type: object
+          additionalProperties: {}
+      required:
+      - action_type
+      - id
+    AutomationActionRequest:
+      type: object
+      properties:
+        action_type:
+          $ref: '#/components/schemas/ActionTypeEnum'
+        params:
+          type: object
+          additionalProperties: {}
+      required:
+      - action_type
+    AutomationCondition:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        field:
+          type: string
+          maxLength: 100
+        operator:
+          type: string
+          maxLength: 50
+        value:
+          type: object
+          additionalProperties: {}
+      required:
+      - field
+      - id
+      - operator
+      - value
+    AutomationConditionRequest:
+      type: object
+      properties:
+        field:
+          type: string
+          minLength: 1
+          maxLength: 100
+        operator:
+          type: string
+          minLength: 1
+          maxLength: 50
+        value:
+          type: object
+          additionalProperties: {}
+      required:
+      - field
+      - operator
+      - value
+    AutomationRule:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        trigger:
+          type: string
+          maxLength: 50
+        is_active:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationCondition'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationAction'
+      required:
+      - actions
+      - conditions
+      - id
+      - name
+      - trigger
+    AutomationRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        trigger:
+          type: string
+          minLength: 1
+          maxLength: 50
+        is_active:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationConditionRequest'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationActionRequest'
+      required:
+      - actions
+      - conditions
+      - name
+      - trigger
+    CreateDealActivityRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 225
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DealActivityStatusEnum'
+        activity_type:
+          $ref: '#/components/schemas/DealActivityTypeEnum'
+        assigned_to:
+          type: integer
+      required:
+      - activity_type
+      - assigned_to
+      - due_date
+      - title
+    CreateDealRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        probability:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Probability in percentage
+        pipeline_stage:
+          $ref: '#/components/schemas/PipelineStageEnum'
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        assigned_to:
+          type: integer
+          writeOnly: true
+        notes:
+          type: string
+      required:
+      - probability
+      - title
+      - value
+    CreateForm:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        duplicate_handling:
+          $ref: '#/components/schemas/DuplicateHandlingEnum'
+      required:
+      - id
+      - name
+    CreateFormRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        duplicate_handling:
+          $ref: '#/components/schemas/DuplicateHandlingEnum'
+      required:
+      - name
+    CreateLead:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        company:
+          type: string
+          maxLength: 150
+        job_title:
+          type: string
+          maxLength: 150
+        status:
+          $ref: '#/components/schemas/LeadStatusEnum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        score:
+          type: integer
+          readOnly: true
+        image:
+          type: string
+          format: uri
+          nullable: true
+        document:
+          type: string
+          format: uri
+          nullable: true
+      required:
+      - email
+      - first_name
+      - last_name
+      - score
+    CreateLeadRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        company:
+          type: string
+          maxLength: 150
+        job_title:
+          type: string
+          maxLength: 150
+        status:
+          $ref: '#/components/schemas/LeadStatusEnum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        image:
+          type: string
+          format: binary
+          nullable: true
+        document:
+          type: string
+          format: binary
+          nullable: true
+      required:
+      - email
+      - first_name
+      - last_name
+    DealActivityFeed:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 225
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DealActivityStatusEnum'
+        activity_type:
+          $ref: '#/components/schemas/DealActivityTypeEnum'
+        assigned_to:
+          type: integer
+        deal_title:
+          type: string
+          readOnly: true
+        is_upcoming:
+          type: boolean
+          readOnly: true
+        is_overdue:
+          type: boolean
+          readOnly: true
+        is_completed:
+          type: boolean
+          readOnly: true
+      required:
+      - activity_type
+      - assigned_to
+      - deal_title
+      - due_date
+      - id
+      - is_completed
+      - is_overdue
+      - is_upcoming
+      - title
+    DealActivityStatusEnum:
+      enum:
+      - pending
+      - in_progress
+      - completed
+      type: string
+      description: |-
+        * `pending` - Pending
+        * `in_progress` - In Progress
+        * `completed` - Completed
+    DealActivityTypeEnum:
+      enum:
+      - call
+      - meeting
+      - email
+      - other
+      type: string
+      description: |-
+        * `call` - Call
+        * `meeting` - Meeting
+        * `email` - Email
+        * `other` - Other
+    DealAnalytics:
+      type: object
+      description: Serializer for workspace-level deal analytics
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        workspace:
+          type: integer
+          readOnly: true
+        date:
+          type: string
+          format: date
+          readOnly: true
+        total_deals:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        total_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        won_deals:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        won_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        lost_deals:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        pipeline_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        leads_converted:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        conversion_rate:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,3}(?:\.\d{0,2})?$
+        total_leads_qualified:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+      required:
+      - date
+      - id
+      - workspace
+    DealDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+          readOnly: true
+        probability:
+          type: integer
+          readOnly: true
+          description: Probability in percentage
+        pipeline_stage_display:
+          type: string
+          readOnly: true
+        expected_close_date:
+          type: string
+          format: date
+          readOnly: true
+          nullable: true
+        assigned_to:
+          allOf:
+          - $ref: '#/components/schemas/SimpleUser'
+          readOnly: true
+          nullable: true
+        notes:
+          type: string
+          readOnly: true
+        workspace:
+          type: string
+          readOnly: true
+      required:
+      - assigned_to
+      - expected_close_date
+      - id
+      - notes
+      - pipeline_stage_display
+      - probability
+      - title
+      - value
+      - workspace
+    DealPipeline:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        probability:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Probability in percentage
+        pipeline_stage:
+          $ref: '#/components/schemas/PipelineStageEnum'
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        assigned_to:
+          allOf:
+          - $ref: '#/components/schemas/SimpleUser'
+          readOnly: true
+        notes:
+          type: string
+      required:
+      - assigned_to
+      - id
+      - probability
+      - title
+      - value
+    DealUpdate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        probability:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Probability in percentage
+        pipeline_stage:
+          $ref: '#/components/schemas/PipelineStageEnum'
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        assigned_to:
+          allOf:
+          - $ref: '#/components/schemas/SimpleUser'
+          readOnly: true
+        notes:
+          type: string
+      required:
+      - assigned_to
+      - id
+      - probability
+      - title
+      - value
+    DealUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        probability:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Probability in percentage
+        pipeline_stage:
+          $ref: '#/components/schemas/PipelineStageEnum'
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+      required:
+      - probability
+      - title
+      - value
+    DuplicateHandlingEnum:
+      enum:
+      - create
+      - update
+      - configurable
+      type: string
+      description: |-
+        * `create` - Always create new lead
+        * `update` - Update existing lead
+        * `configurable` - Smart match email/phone
+    FieldTypeEnum:
+      enum:
+      - text
+      - email
+      - phone
+      - textarea
+      - select
+      - checkbox
+      type: string
+      description: |-
+        * `text` - Text
+        * `email` - Email
+        * `phone` - Phone
+        * `textarea` - Textarea
+        * `select` - Select
+        * `checkbox` - Checkbox
+    ForgotPasswordRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    LeadActivityCreate:
+      type: object
+      properties:
+        activity_type:
+          allOf:
+          - $ref: '#/components/schemas/LeadActivityTypeEnum'
+          default: email
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          default: medium
+        subject:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        attachment:
+          type: string
+          format: uri
+      required:
+      - subject
+    LeadActivityCreateRequest:
+      type: object
+      properties:
+        lead_id:
+          type: integer
+          writeOnly: true
+        activity_type:
+          allOf:
+          - $ref: '#/components/schemas/LeadActivityTypeEnum'
+          default: email
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          default: medium
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        attachment:
+          type: string
+          format: binary
+      required:
+      - lead_id
+      - subject
+    LeadActivityFeed:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        subject:
+          type: string
+          maxLength: 255
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+        activity_type:
+          $ref: '#/components/schemas/LeadActivityTypeEnum'
+        lead_name:
+          type: string
+          readOnly: true
+        is_upcoming:
+          type: boolean
+          readOnly: true
+        is_overdue:
+          type: boolean
+          readOnly: true
+        is_completed:
+          type: boolean
+          readOnly: true
+      required:
+      - activity_type
+      - id
+      - is_completed
+      - is_overdue
+      - is_upcoming
+      - lead_name
+      - subject
+    LeadActivityList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        activity_type:
+          allOf:
+          - $ref: '#/components/schemas/LeadActivityTypeEnum'
+          readOnly: true
+        priority:
+          allOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          readOnly: true
+        subject:
+          type: string
+          readOnly: true
+        description:
+          type: string
+          readOnly: true
+        due_date:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        performed_by:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        attachment:
+          type: array
+          items:
+            type: string
+          readOnly: true
+      required:
+      - activity_type
+      - attachment
+      - created_at
+      - description
+      - due_date
+      - id
+      - performed_by
+      - priority
+      - subject
+    LeadActivityTypeEnum:
+      enum:
+      - call
+      - email
+      - meeting
+      - note
+      - task
+      type: string
+      description: |-
+        * `call` - call
+        * `email` - email
+        * `meeting` - meeting
+        * `note` - note
+        * `task` - task
+    LeadActivityUpdate:
+      type: object
+      properties:
+        activity_type:
+          $ref: '#/components/schemas/LeadActivityTypeEnum'
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        subject:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - activity_type
+      - priority
+      - subject
+    LeadActivityUpdateRequest:
+      type: object
+      properties:
+        activity_type:
+          $ref: '#/components/schemas/LeadActivityTypeEnum'
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - activity_type
+      - priority
+      - subject
+    LeadConversionRequest:
+      type: object
+      description: |-
+        Serializer for converting a lead to a deal.
+        Validates business rules and creates the deal with transferred activities.
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        probability:
+          type: integer
+          maximum: 100
+          minimum: 0
+        expected_close_date:
+          type: string
+          format: date
+        assigned_to:
+          type: integer
+        notes:
+          type: string
+    LeadDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        company:
+          type: string
+          readOnly: true
+        job_title:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LeadStatusEnum'
+          readOnly: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+        score:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+        created_by:
+          type: object
+          additionalProperties: {}
+          nullable: true
+          readOnly: true
+        workspace:
+          type: string
+          readOnly: true
+      required:
+      - company
+      - created_at
+      - created_by
+      - email
+      - first_name
+      - id
+      - job_title
+      - last_name
+      - phone
+      - score
+      - source
+      - status
+      - updated_at
+      - workspace
+    LeadList:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        first_name:
+          type: string
+          readOnly: true
+        last_name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        phone:
+          type: string
+          readOnly: true
+        company:
+          type: string
+          readOnly: true
+        status:
+          allOf:
+          - $ref: '#/components/schemas/LeadStatusEnum'
+          readOnly: true
+        source:
+          allOf:
+          - $ref: '#/components/schemas/SourceEnum'
+          readOnly: true
+        score:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - company
+      - created_at
+      - email
+      - first_name
+      - id
+      - last_name
+      - phone
+      - score
+      - source
+      - status
+    LeadStatusEnum:
+      enum:
+      - new
+      - contacted
+      - qualified
+      - converted
+      - unqualified
+      - lost
+      type: string
+      description: |-
+        * `new` - New
+        * `contacted` - Contacted
+        * `qualified` - Qualified
+        * `converted` - Converted
+        * `unqualified` - Unqualified
+        * `lost` - Lost
+    LeadUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+          maxLength: 100
+        last_name:
+          type: string
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        company:
+          type: string
+          maxLength: 150
+        job_title:
+          type: string
+          maxLength: 150
+        status:
+          $ref: '#/components/schemas/LeadStatusEnum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        image:
+          type: string
+          format: uri
+          nullable: true
+        document:
+          type: string
+          format: uri
+          nullable: true
+    LeadUpdateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        company:
+          type: string
+          maxLength: 150
+        job_title:
+          type: string
+          maxLength: 150
+        status:
+          $ref: '#/components/schemas/LeadStatusEnum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        image:
+          type: string
+          format: binary
+          nullable: true
+        document:
+          type: string
+          format: binary
+          nullable: true
+    LoginSerializersRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        password:
+          type: string
+          minLength: 1
+      required:
+      - email
+      - password
+    MapToLeadFieldEnum:
+      enum:
+      - first_name
+      - last_name
+      - email
+      - phone
+      - company
+      - job_title
+      - notes
+      - none
+      type: string
+      description: |-
+        * `first_name` - First Name
+        * `last_name` - Last Name
+        * `email` - Email
+        * `phone` - Phone
+        * `company` - Company
+        * `job_title` - Job Title
+        * `notes` - Notes
+        * `none` - No Mapping
+    NullEnum:
+      enum:
+      - null
+    PaginatedLeadActivityListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeadActivityList'
+    PaginatedLeadListList:
+      type: object
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeadList'
+    PatchedAutomationRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        trigger:
+          type: string
+          minLength: 1
+          maxLength: 50
+        is_active:
+          type: boolean
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationConditionRequest'
+        actions:
+          type: array
+          items:
+            $ref: '#/components/schemas/AutomationActionRequest'
+    PatchedDealAssignmentRequest:
+      type: object
+      properties:
+        assigned_to_id:
+          type: integer
+          writeOnly: true
+    PatchedDealUpdateRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,10}(?:\.\d{0,2})?$
+        probability:
+          type: integer
+          maximum: 2147483647
+          minimum: 0
+          description: Probability in percentage
+        pipeline_stage:
+          $ref: '#/components/schemas/PipelineStageEnum'
+        expected_close_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+    PatchedLeadActivityUpdateRequest:
+      type: object
+      properties:
+        activity_type:
+          $ref: '#/components/schemas/LeadActivityTypeEnum'
+        priority:
+          $ref: '#/components/schemas/PriorityEnum'
+        subject:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+          nullable: true
+    PatchedLeadUpdateRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        last_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+        phone:
+          type: string
+          maxLength: 20
+        company:
+          type: string
+          maxLength: 150
+        job_title:
+          type: string
+          maxLength: 150
+        status:
+          $ref: '#/components/schemas/LeadStatusEnum'
+        source:
+          $ref: '#/components/schemas/SourceEnum'
+        image:
+          type: string
+          format: binary
+          nullable: true
+        document:
+          type: string
+          format: binary
+          nullable: true
+    PatchedTaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        assigned_to_id:
+          type: integer
+          nullable: true
+        related_object_id:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+        related_to_type:
+          type: string
+          nullable: true
+          maxLength: 50
+    PatchedUpdateDealActivityRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 225
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DealActivityStatusEnum'
+        activity_type:
+          $ref: '#/components/schemas/DealActivityTypeEnum'
+        assigned_to:
+          type: integer
+    PatchedUpdateFormAssignmentRequest:
+      type: object
+      properties:
+        assignment_type:
+          $ref: '#/components/schemas/AssignmentTypeEnum'
+        fixed_assignee_id:
+          type: integer
+        round_robin_user_ids:
+          type: array
+          items:
+            type: integer
+    PatchedWorkspaceMemberRoleUpdateRequest:
+      type: object
+      properties:
+        role:
+          $ref: '#/components/schemas/WorkspaceMemberRoleUpdateRoleEnum'
+    PipelineStageEnum:
+      enum:
+      - lead
+      - contact_made
+      - proposal_sent
+      - negotiation
+      - closed_won
+      - closed_lost
+      type: string
+      description: |-
+        * `lead` - Lead
+        * `contact_made` - Contact Made
+        * `proposal_sent` - Proposal Sent
+        * `negotiation` - Negotiation
+        * `closed_won` - Closed Won
+        * `closed_lost` - Closed Lost
+    PriorityEnum:
+      enum:
+      - low
+      - medium
+      - high
+      type: string
+      description: |-
+        * `low` - low
+        * `medium` - medium
+        * `high` - high
+    PublicFormSubmitRequest:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: {}
+      required:
+      - data
+    RegisterRequest:
+      type: object
+      properties:
+        account_type:
+          $ref: '#/components/schemas/AccountTypeEnum'
+        email:
+          type: string
+          format: email
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+          writeOnly: true
+          minLength: 8
+        phone_number:
+          type: string
+          minLength: 1
+          maxLength: 15
+        company_name:
+          type: string
+          minLength: 1
+        company_email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - account_type
+      - email
+      - full_name
+      - password
+      - phone_number
+    ResendVerificationRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+      required:
+      - email
+    ResetPasswordRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          format: uuid
+        new_password:
+          type: string
+          minLength: 8
+      required:
+      - new_password
+      - token
+    SimpleUser:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          readOnly: true
+        email:
+          type: string
+          format: email
+          maxLength: 254
+      required:
+      - email
+      - id
+      - name
+    SimpleUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+          maxLength: 254
+      required:
+      - email
+    SourceEnum:
+      enum:
+      - website
+      - referral
+      - social_media
+      - email_campaign
+      - event
+      - cold_call
+      - other
+      type: string
+      description: |-
+        * `website` - Website
+        * `referral` - Referral
+        * `social_media` - Social Media
+        * `email_campaign` - Email Campaign
+        * `event` - Event
+        * `cold_call` - Cold Call
+        * `other` - Other
+    Task:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        assigned_to_id:
+          type: integer
+          nullable: true
+        created_by_id:
+          type: integer
+          nullable: true
+          readOnly: true
+        related_object_id:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+        related_to_type:
+          type: string
+          nullable: true
+          maxLength: 50
+        completed_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - completed_at
+      - created_at
+      - created_by_id
+      - id
+      - title
+      - updated_at
+    TaskRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TaskStatusEnum'
+        due_at:
+          type: string
+          format: date-time
+          nullable: true
+        priority:
+          nullable: true
+          oneOf:
+          - $ref: '#/components/schemas/PriorityEnum'
+          - $ref: '#/components/schemas/NullEnum'
+        assigned_to_id:
+          type: integer
+          nullable: true
+        related_object_id:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+          nullable: true
+        related_to_type:
+          type: string
+          nullable: true
+          maxLength: 50
+      required:
+      - title
+    TaskStatusEnum:
+      enum:
+      - open
+      - in_progress
+      - done
+      type: string
+      description: |-
+        * `open` - Open
+        * `in_progress` - In Progress
+        * `done` - Done
+    UpdateDealActivity:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        title:
+          type: string
+          maxLength: 225
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DealActivityStatusEnum'
+        activity_type:
+          $ref: '#/components/schemas/DealActivityTypeEnum'
+        assigned_to:
+          type: integer
+      required:
+      - activity_type
+      - assigned_to
+      - due_date
+      - id
+      - title
+    UpdateDealActivityRequest:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 225
+        description:
+          type: string
+        due_date:
+          type: string
+          format: date-time
+        status:
+          $ref: '#/components/schemas/DealActivityStatusEnum'
+        activity_type:
+          $ref: '#/components/schemas/DealActivityTypeEnum'
+        assigned_to:
+          type: integer
+      required:
+      - activity_type
+      - assigned_to
+      - due_date
+      - title
+    UserAnalytics:
+      type: object
+      description: Serializer for user performance analytics
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        user:
+          type: integer
+        user_name:
+          type: string
+          readOnly: true
+        user_email:
+          type: string
+          format: email
+          readOnly: true
+        workspace:
+          type: integer
+        date:
+          type: string
+          format: date
+        deals_created:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        deals_closed:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        revenue_generated:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+        activities_completed:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        leads_converted:
+          type: integer
+          maximum: 2147483647
+          minimum: -2147483648
+        conversion_value:
+          type: string
+          format: decimal
+          pattern: ^-?\d{0,8}(?:\.\d{0,2})?$
+      required:
+      - date
+      - id
+      - user
+      - user_email
+      - user_name
+      - workspace
+    UserCreateRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        full_name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+          writeOnly: true
+          minLength: 1
+        phone_number:
+          type: string
+          minLength: 1
+          maxLength: 15
+        role_id:
+          type: integer
+      required:
+      - email
+      - full_name
+      - password
+      - phone_number
+      - role_id
+    VerifyEmailRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          format: uuid
+      required:
+      - token
+    WorkspaceCreate:
+      type: object
+      properties:
+        id:
+          type: integer
+          readOnly: true
+        name:
+          type: string
+          maxLength: 255
+        slug:
+          type: string
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - id
+      - name
+      - slug
+    WorkspaceCreateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: ^[-a-zA-Z0-9_]+$
+      required:
+      - name
+      - slug
+    WorkspaceEmailInviteRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          minLength: 1
+        role:
+          $ref: '#/components/schemas/WorkspaceEmailInviteRoleEnum'
+      required:
+      - email
+      - role
+    WorkspaceEmailInviteRoleEnum:
+      enum:
+      - owner
+      - admin
+      - manager
+      - member
+      type: string
+      description: |-
+        * `owner` - owner
+        * `admin` - admin
+        * `manager` - manager
+        * `member` - member
+    WorkspaceMemberRoleUpdateRoleEnum:
+      enum:
+      - admin
+      - member
+      type: string
+      description: |-
+        * `admin` - admin
+        * `member` - member
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

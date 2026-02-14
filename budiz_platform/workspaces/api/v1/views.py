@@ -5,6 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from subscriptions.permissions import HasActiveSubscription
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from common.swagger import workspace_header
 from ...models import Workspace, WorkspaceMember, WorkspaceInvite
 from .serializers import (
     WorkspaceCreateSerializer,
@@ -25,6 +26,7 @@ class WorkspaceCreateAPIView(APIView):
         responses={201: WorkspaceCreateSerializer},
         description="Create a new workspace",
         tags=["Workspaces"],
+        auth=[{"BearerAuth": []}],
     )
     def post(self, request):
         serializer = WorkspaceCreateSerializer(data=request.data)
@@ -59,6 +61,8 @@ class WorkspaceEmailInviteAPIView(APIView):
         },
         description="Send email invitation to join workspace",
         tags=["Workspaces"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
     )
     def post(self, request, workspace_id):
         try:
@@ -101,6 +105,7 @@ class AcceptWorkspaceInviteAPIView(APIView):
 
     @extend_schema(
         operation_id="acceptWorkspaceInvite",
+        request=None,
         responses={
             200: OpenApiResponse(description="Invitation accepted"),
             400: OpenApiResponse(description="Invalid or expired invite"),
@@ -108,6 +113,7 @@ class AcceptWorkspaceInviteAPIView(APIView):
         },
         description="Accept workspace invitation using token",
         tags=["Workspaces"],
+        auth=[{"BearerAuth": []}],
     )
     def post(self, request, token):
         try:
@@ -182,6 +188,7 @@ class WorkspaceInviteResendAPIView(APIView):
     permission_classes = [IsAuthenticated, HasActiveSubscription]
 
     @extend_schema(
+        request=None,
         responses={
             200: OpenApiResponse(description="Invite resent successfully"),
             400: OpenApiResponse(description="Invite already accepted"),
@@ -189,6 +196,7 @@ class WorkspaceInviteResendAPIView(APIView):
         },
         description="Resend workspace invitation email",
         tags=["Workspaces"],
+        auth=[{"BearerAuth": []}],
     )
     def post(self, request, invite_id):
         invite = get_object_or_404(
@@ -206,21 +214,7 @@ class WorkspaceInviteResendAPIView(APIView):
 
         invite.resend()
 
-        send_workspace_invite_email(
-            email=invite.email,
-            token=invite.token,
-            workspace=invite.workspace
-            @ extend_schema(
-                request=WorkspaceMemberRoleUpdateSerializer,
-                responses={
-                    200: OpenApiResponse(description="Member role updated"),
-                    400: OpenApiResponse(description="Cannot change owner role"),
-                    404: OpenApiResponse(description="Workspace or member not found"),
-                },
-                description="Update workspace member role",
-                tags=["Workspaces"],
-            ),
-        )
+        send_workspace_invite_email(invite)
 
         return Response(
             {
@@ -238,6 +232,18 @@ class WorkspaceMemberRoleUpdateAPIView(APIView):
     def get_workspace(self):
         return get_object_or_404(Workspace, id=self.kwargs["workspace_id"])
 
+    @extend_schema(
+        request=WorkspaceMemberRoleUpdateSerializer,
+        responses={
+            200: OpenApiResponse(description="Member role updated"),
+            400: OpenApiResponse(description="Cannot change owner role"),
+            404: OpenApiResponse(description="Workspace or member not found"),
+        },
+        description="Update workspace member role",
+        tags=["Workspaces"],
+        auth=[{"BearerAuth": []}],
+        parameters=[workspace_header],
+    )
     def patch(self, request, workspace_id, member_id):
         workspace = self.get_workspace()
 
