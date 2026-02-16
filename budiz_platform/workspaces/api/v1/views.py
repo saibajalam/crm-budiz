@@ -26,7 +26,7 @@ class WorkspaceCreateAPIView(APIView):
         responses={201: WorkspaceCreateSerializer},
         description="Create a new workspace",
         tags=["Workspaces"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def post(self, request):
         serializer = WorkspaceCreateSerializer(data=request.data)
@@ -61,7 +61,7 @@ class WorkspaceEmailInviteAPIView(APIView):
         },
         description="Send email invitation to join workspace",
         tags=["Workspaces"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, workspace_id):
@@ -113,7 +113,7 @@ class AcceptWorkspaceInviteAPIView(APIView):
         },
         description="Accept workspace invitation using token",
         tags=["Workspaces"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def post(self, request, token):
         try:
@@ -196,7 +196,7 @@ class WorkspaceInviteResendAPIView(APIView):
         },
         description="Resend workspace invitation email",
         tags=["Workspaces"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def post(self, request, invite_id):
         invite = get_object_or_404(
@@ -241,7 +241,7 @@ class WorkspaceMemberRoleUpdateAPIView(APIView):
         },
         description="Update workspace member role",
         tags=["Workspaces"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def patch(self, request, workspace_id, member_id):

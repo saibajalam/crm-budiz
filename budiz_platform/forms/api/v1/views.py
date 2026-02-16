@@ -15,7 +15,7 @@ from subscriptions.permissions import HasActiveSubscription
 from ...models import Form
 from ...api.v1.serailizers import (
     PublicFormSubmitSerializer,
-    CreateFormSerializer,
+    CreateFormWithFieldsSerializer,
     AddFieldSerializer,
     UpdateFormAssignmentSerializer,
 )
@@ -83,17 +83,17 @@ class CreateFormAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember, HasActiveSubscription]
 
     @extend_schema(
-        request=CreateFormSerializer,
-        responses={201: CreateFormSerializer},
+        request=CreateFormWithFieldsSerializer,
+        responses={201: CreateFormWithFieldsSerializer},
         description="Create a new form in workspace",
         tags=["Forms"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request):
         workspace = get_user_workspace(request.user)
 
-        serializer = CreateFormSerializer(data=request.data)
+        serializer = CreateFormWithFieldsSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         form = serializer.save(
@@ -102,7 +102,7 @@ class CreateFormAPIView(APIView):
             slug=str(uuid.uuid4())[:10],
         )
 
-        response_serializer = CreateFormSerializer(form)
+        response_serializer = CreateFormWithFieldsSerializer(form)
 
         return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
@@ -118,7 +118,7 @@ class AddFieldAPIView(APIView):
         responses={201: AddFieldSerializer},
         description="Add field to existing form",
         tags=["Forms"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, form_id):
@@ -148,7 +148,7 @@ class UpdateFormAssignmentAPIView(APIView):
         responses={200: OpenApiResponse(description="Assignment updated successfully")},
         description="Update form assignment settings",
         tags=["Forms"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def patch(self, request, form_id):
@@ -176,7 +176,7 @@ class FormEmbedAPIView(APIView):
         responses={200: OpenApiResponse(description="Form embed code retrieved")},
         description="Get embed code for form integration",
         tags=["Forms"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def get(self, request, form_id):

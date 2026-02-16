@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 from ...models import Form, FormField
 
 
@@ -16,12 +17,6 @@ class PublicFormSubmitSerializer(serializers.Serializer):
         return attrs
 
 
-class CreateFormSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Form
-        fields = ["id", "name", "duplicate_handling"]
-
-
 class AddFieldSerializer(serializers.ModelSerializer):
     class Meta:
         model = FormField
@@ -33,6 +28,24 @@ class AddFieldSerializer(serializers.ModelSerializer):
             "order",
             "map_to_lead_field",
         ]
+
+
+class CreateFormWithFieldsSerializer(serializers.ModelSerializer):
+    fields = AddFieldSerializer(many=True, required=False)
+
+    class Meta:
+        model = Form
+        fields = ["id", "name", "duplicate_handling", "fields"]
+
+    def create(self, validated_data):
+        fields_data = validated_data.pop("fields", [])
+        with transaction.atomic():
+            form = Form.objects.create(**validated_data)
+
+            for field_data in fields_data:
+                FormField.objects.create(form=form, **field_data)
+
+            return form
 
 
 class UpdateFormAssignmentSerializer(serializers.Serializer):

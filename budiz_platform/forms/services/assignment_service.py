@@ -5,6 +5,9 @@ User = get_user_model()
 
 
 def assign_lead_from_form(*, form, lead):
+    if not hasattr(form, "assignment_type"):
+        return
+
     assignee = None
 
     if form.assignment_type == "fixed" and form.fixed_assignee:

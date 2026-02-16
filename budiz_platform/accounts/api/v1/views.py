@@ -125,7 +125,7 @@ class UserCreateAPIView(APIView):
         },
         description="Create a new user (SuperAdmin only)",
         tags=["Users"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
@@ -338,7 +338,7 @@ class SuperAdminDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="SuperAdmin dashboard data")},
         description="Get SuperAdmin dashboard overview",
         tags=["Dashboards"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     @role_required("superadmin")
     def get(self, request):
@@ -359,7 +359,7 @@ class AdminDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Admin dashboard data")},
         description="Get Admin dashboard overview",
         tags=["Dashboards"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     @role_required("admin")
     def get(self, request):
@@ -380,7 +380,7 @@ class ManagerDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Manager dashboard data")},
         description="Get Manager dashboard overview",
         tags=["Dashboards"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     @role_required("manager")
     def get(self, request):
@@ -401,7 +401,7 @@ class SalesDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Sales dashboard data")},
         description="Get Sales Representative dashboard overview",
         tags=["Dashboards"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     @role_required("sales_representative")
     def get(self, request):

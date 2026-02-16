@@ -72,7 +72,7 @@ class LeadListCreateAPIView(ListCreateAPIView):
             403: OpenApiResponse(description="Permission denied"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -134,7 +134,7 @@ class LeadListCreateAPIView(ListCreateAPIView):
             403: OpenApiResponse(description="Permission denied"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def create(self, request, *args, **kwargs):
@@ -197,7 +197,7 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def retrieve(self, request, *args, **kwargs):
@@ -228,7 +228,7 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def update(self, request, *args, **kwargs):
@@ -263,7 +263,7 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def destroy(self, request, *args, **kwargs):
@@ -301,7 +301,7 @@ class LeadRestoreAPIView(APIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, lead_id):
@@ -390,7 +390,7 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -429,7 +429,7 @@ class LeadActivityListCreateAPIView(ListCreateAPIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def create(self, request, *args, **kwargs):
@@ -534,7 +534,7 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             404: OpenApiResponse(description="Activity not found"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def retrieve(self, request, *args, **kwargs):
@@ -565,7 +565,7 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             404: OpenApiResponse(description="Activity not found"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def update(self, request, *args, **kwargs):
@@ -607,7 +607,7 @@ class LeadActivityRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
             404: OpenApiResponse(description="Activity not found"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def destroy(self, request, *args, **kwargs):
@@ -641,7 +641,7 @@ class LeadActivityRestoreAPIView(APIView):
             404: OpenApiResponse(description="Activity not found"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, activity_id):
@@ -722,7 +722,7 @@ class LeadActivityFeedAPIView(ListAPIView):
             403: OpenApiResponse(description="Permission denied"),
         },
         tags=["Lead Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -782,7 +782,7 @@ class LeadConversionAPIView(APIView):
             404: OpenApiResponse(description="Lead not found"),
         },
         tags=["Leads"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     @transaction.atomic

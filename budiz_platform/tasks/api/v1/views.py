@@ -19,7 +19,7 @@ class TaskListCreateAPIView(APIView):
         responses={200: TaskSerializer(many=True)},
         description="List all tasks in the workspace",
         tags=["Tasks"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -46,7 +46,7 @@ class TaskListCreateAPIView(APIView):
         responses={201: TaskSerializer},
         description="Create a new task",
         tags=["Tasks"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request):
@@ -81,7 +81,7 @@ class TaskDetailAPIView(APIView):
         responses={200: TaskSerializer},
         description="Retrieve a specific task",
         tags=["Tasks"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def get(self, request, task_id):
@@ -98,7 +98,7 @@ class TaskDetailAPIView(APIView):
         responses={200: TaskSerializer},
         description="Partially update a task",
         tags=["Tasks"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def patch(self, request, task_id):
@@ -122,7 +122,7 @@ class TaskDetailAPIView(APIView):
         responses={204: OpenApiResponse(description="Task deleted")},
         description="Delete a task",
         tags=["Tasks"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def delete(self, request, task_id):

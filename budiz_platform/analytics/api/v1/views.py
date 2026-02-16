@@ -53,7 +53,7 @@ class AnalyticsDashboardAPIView(APIView):
         responses={200: AnalyticsSummarySerializer},
         description="Get analytics dashboard summary with deals and leads statistics",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -151,7 +151,7 @@ class DealAnalyticsListAPIView(APIView):
         responses={200: DealAnalyticsSerializer(many=True)},
         description="Get daily deal analytics with aggregated metrics",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -207,7 +207,7 @@ class UserAnalyticsListAPIView(APIView):
         responses={200: UserAnalyticsSerializer(many=True)},
         description="Get user-wise analytics for deals and revenue",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -261,7 +261,7 @@ class UserAnalyticsDetailAPIView(APIView):
         responses={200: UserAnalyticsSerializer},
         description="Get detailed analytics for a specific user",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request, user_id):
         # 1️⃣ Get current workspace
@@ -356,7 +356,7 @@ class AnalyticsTrendsAPIView(APIView):
         responses={200: OpenApiResponse(description="Trend data")},
         description="Get analytics trends over time",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -394,7 +394,7 @@ class FormTrendAPIView(APIView):
         responses={200: OpenApiResponse(description="Form submission trends")},
         description="Get form submission trends over time",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def get(self, request, form_id):
@@ -425,7 +425,7 @@ class FormConversionFunnelAPIView(APIView):
         responses={200: OpenApiResponse(description="Form conversion funnel data")},
         description="Get conversion funnel analytics for a specific form",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request, form_id):
         workspace = get_user_workspace(request.user)
@@ -497,7 +497,7 @@ class UserConversionFunnelAPIView(APIView):
         responses={200: OpenApiResponse(description="User funnel analytics")},
         description="Get conversion funnel analytics for current user",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def get(self, request):
@@ -530,7 +530,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Workspace funnel dashboard data")},
         description="Get comprehensive workspace funnel dashboard with conversion metrics",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -654,7 +654,7 @@ class TimeToConversionAPIView(APIView):
         responses={200: OpenApiResponse(description="Time to conversion analytics")},
         description="Get time-to-conversion analytics",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -688,7 +688,7 @@ class RevenueDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Revenue dashboard data")},
         description="Get revenue dashboard with financial metrics",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)
@@ -727,7 +727,7 @@ class UnifiedDashboardAPIView(APIView):
         responses={200: OpenApiResponse(description="Unified dashboard data")},
         description="Get unified workspace analytics dashboard with cached data",
         tags=["Analytics"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
         workspace = get_user_workspace(request.user)

@@ -1,13 +1,15 @@
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from ...services import activate_subscription
-from ...models import SubscriptionPlan, Company
 from rest_framework import status
 from subscriptions.services import (
-    activate_subscription,
     activate_user_subscription,
+    activate_workspace_subscription,
 )
+from subscriptions.services.subscription_service import (
+    get_workspace_for_user,
+)
+from ...models import SubscriptionPlan
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from .serializers import ActivateSubscriptionSerializer
 
@@ -22,21 +24,64 @@ class CompanyStatusAPIView(APIView):
             200: OpenApiResponse(description="Company status retrieved"),
             403: OpenApiResponse(description="User does not belong to a company"),
         },
-        description="Get company trial and subscription status",
+        description="Get workspace or user subscription status",
         tags=["Subscriptions"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def get(self, request):
-        if not hasattr(request.user, "owned_company"):
-            return Response({"error": "User does not belong to a company"}, status=403)
+        user = request.user
+        workspace = get_workspace_for_user(user)
 
-        company = request.user.owned_company
+        if workspace:
+            subscription = getattr(workspace, "subscription", None)
+            return Response(
+                {
+                    "subscription_scope": "workspace",
+                    "workspace_id": workspace.id,
+                    "workspace_name": workspace.name,
+                    "status": subscription.status if subscription else None,
+                    "expires_at": subscription.expires_at if subscription else None,
+                    "has_subscription": (
+                        subscription.is_valid() if subscription else False
+                    ),
+                }
+            )
+
+        subscription = getattr(user, "subscription", None)
+        return Response(
+            {
+                "subscription_scope": "user",
+                "trial_active": user.is_trial_active(),
+                "trial_ends_at": user.trial_ends_at,
+                "status": subscription.status if subscription else None,
+                "expires_at": subscription.expires_at if subscription else None,
+                "has_subscription": subscription.is_valid() if subscription else False,
+            }
+        )
+
+
+class UserStatusAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description="User subscription status retrieved"),
+        },
+        description="Get individual user subscription status",
+        tags=["Subscriptions"],
+        auth=[{"jwtAuth": []}],
+    )
+    def get(self, request):
+        user = request.user
+        subscription = getattr(user, "subscription", None)
 
         return Response(
             {
-                "trial_active": company.is_trial_active(),
-                "trial_ends_at": company.trial_ends_at,
-                "has_subscription": company.has_active_subscription(),
+                "trial_active": user.is_trial_active(),
+                "trial_ends_at": user.trial_ends_at,
+                "status": subscription.status if subscription else None,
+                "expires_at": subscription.expires_at if subscription else None,
+                "is_activated": subscription.is_valid() if subscription else False,
             }
         )
 
@@ -62,7 +107,7 @@ class ActivateSubscriptionAPIView(APIView):
         },
         description="Activate a subscription plan for user or company",
         tags=["Subscriptions"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
     )
     def post(self, request):
         plan_id = request.data.get("plan_id")
@@ -80,28 +125,31 @@ class ActivateSubscriptionAPIView(APIView):
             )
 
         user = request.user
+        workspace = get_workspace_for_user(user)
 
-        # Company subscription
-        if hasattr(user, "company") and user.company:
-            company = user.company
+        if workspace:
+            if workspace.owner_id != user.id:
+                return Response(
+                    {"error": "Only workspace owner can activate subscription"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
 
-            subscription = activate_subscription(company, plan)
+            subscription = activate_workspace_subscription(workspace, plan)
 
             return Response(
                 {
                     "success": True,
-                    "subscription_type": "company",
-                    "message": "Company subscription activated successfully",
+                    "subscription_type": "workspace",
+                    "message": "Workspace subscription activated successfully",
                     "subscription_id": subscription.id,
                     "plan": plan.name,
-                    "valid_till": subscription.ends_at,
+                    "valid_till": subscription.expires_at,
                     "status_code": 200,
                     "error": None,
                 },
                 status=status.HTTP_200_OK,
             )
 
-        # Individual user subscription
         subscription = activate_user_subscription(user, plan)
 
         return Response(
@@ -111,7 +159,7 @@ class ActivateSubscriptionAPIView(APIView):
                 "message": "User subscription activated successfully",
                 "subscription_id": subscription.id,
                 "plan": plan.name,
-                "valid_till": subscription.ends_at,
+                "valid_till": subscription.expires_at,
                 "status_code": 200,
                 "error": None,
             },

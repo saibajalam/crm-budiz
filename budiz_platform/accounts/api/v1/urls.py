@@ -15,7 +15,7 @@ from .views import (
 
 urlpatterns = [
     path("register/", RegisterAPI.as_view(), name="register"),
-    path("login", LoginAPIView.as_view(), name="api-login"),
+    path("login/", LoginAPIView.as_view(), name="api-login"),
     path(
         "superadmin/", SuperAdminDashboardAPIView.as_view(), name="superadmin_dashboard"
     ),

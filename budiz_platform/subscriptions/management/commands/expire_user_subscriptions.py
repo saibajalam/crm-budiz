@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from subscriptions.models import UserSubscription
+from subscriptions.models import SubscriptionStatus, UserSubscription
 
 
 class Command(BaseCommand):
@@ -10,12 +10,12 @@ class Command(BaseCommand):
         now = timezone.now()
 
         expired = UserSubscription.objects.filter(
-            is_active=True,
-            ends_at__lt=now
+            status__in=[SubscriptionStatus.ACTIVE, SubscriptionStatus.TRIAL],
+            expires_at__lt=now,
         )
 
         count = expired.count()
-        expired.update(is_active=False)
+        expired.update(status=SubscriptionStatus.EXPIRED)
 
         self.stdout.write(
             self.style.SUCCESS(

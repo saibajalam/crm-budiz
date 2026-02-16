@@ -24,7 +24,7 @@ class AutomationRuleListCreateAPIView(APIView):
         responses={200: AutomationRuleSerializer(many=True)},
         description="List all automation rules in the workspace",
         tags=["Automation"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def get(self, request):
@@ -39,7 +39,7 @@ class AutomationRuleListCreateAPIView(APIView):
         responses={201: AutomationRuleSerializer},
         description="Create a new automation rule",
         tags=["Automation"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request):
@@ -74,7 +74,7 @@ class AutomationRuleDetailAPIView(APIView):
         responses={200: AutomationRuleSerializer},
         description="Retrieve a specific automation rule",
         tags=["Automation"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def get(self, request, rule_id):
@@ -86,7 +86,7 @@ class AutomationRuleDetailAPIView(APIView):
         responses={200: AutomationRuleSerializer},
         description="Partially update an automation rule",
         tags=["Automation"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def patch(self, request, rule_id):
@@ -106,7 +106,7 @@ class AutomationRuleDetailAPIView(APIView):
         responses={204: OpenApiResponse(description="Automation rule deleted")},
         description="Delete an automation rule",
         tags=["Automation"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def delete(self, request, rule_id):
@@ -123,7 +123,7 @@ class ToggleAutomationRuleAPIView(APIView):
         responses={200: OpenApiResponse(description="Automation rule toggled")},
         description="Toggle automation rule active status",
         tags=["Automation"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def patch(self, request, rule_id):

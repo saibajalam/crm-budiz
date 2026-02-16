@@ -37,7 +37,7 @@ class CreateDealAPIView(APIView):
         responses={201: DealDetailSerializer},
         description="Create a new deal in the workspace",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request):
@@ -118,7 +118,7 @@ class PipelineWiseDealListAPIView(ListAPIView):
         responses={200: DealPipelineSerializer(many=True)},
         description="List deals grouped by pipeline stage",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -146,7 +146,7 @@ class PipelineWiseDealListAPIView(ListAPIView):
         responses={200: DealPipelineSerializer(many=True)},
         description="List deals filtered by pipeline stage",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -193,7 +193,7 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         responses={200: DealDetailSerializer},
         description="Retrieve a specific deal",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def retrieve(self, request, *args, **kwargs):
@@ -216,7 +216,7 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         responses={200: DealDetailSerializer},
         description="Update a specific existing deal",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def update(self, request, *args, **kwargs):
@@ -242,7 +242,7 @@ class DealRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         responses={200: OpenApiResponse(description="Deal deleted successfully")},
         description="Soft delete a deal",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def destroy(self, request, *args, **kwargs):
@@ -269,7 +269,7 @@ class DealRestoreAPIView(APIView):
         responses={200: OpenApiResponse(description="Deal restored successfully")},
         description="Restore a soft-deleted deal",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, deal_id):
@@ -332,7 +332,7 @@ class DealAssignmentUpdateAPIView(APIView):
         responses={200: DealDetailSerializer},
         description="Update deal assignment",
         tags=["Deals"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def patch(self, request, deal_id):
@@ -392,7 +392,7 @@ class DealActivityFeedAPIView(ListAPIView):
         responses={200: DealActivityFeedSerializer(many=True)},
         description="Get deal activity feed with filters",
         tags=["Deal Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[
             workspace_header,
             OpenApiParameter(
@@ -435,7 +435,7 @@ class CreateDealActivityAPIView(APIView):
         responses={201: DealActivityFeedSerializer},
         description="Create a new deal activity",
         tags=["Deal Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, deal_id):
@@ -513,7 +513,7 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
         responses={200: DealActivityFeedSerializer},
         description="Retrieve a specific deal activity",
         tags=["Deal Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def retrieve(self, request, *args, **kwargs):
@@ -533,7 +533,7 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
         responses={200: DealActivityFeedSerializer},
         description="Update a specific deal activity",
         tags=["Deal Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def update(self, request, *args, **kwargs):
@@ -561,7 +561,7 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
         responses={204: OpenApiResponse(description="Activity deleted successfully")},
         description="Delete a specific deal activity",
         tags=["Deal Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def destroy(self, request, *args, **kwargs):
@@ -585,7 +585,7 @@ class RestoreDealActivityAPIView(APIView):
         responses={200: DealActivityFeedSerializer},
         description="Restore a deleted deal activity",
         tags=["Deal Activities"],
-        auth=[{"BearerAuth": []}],
+        auth=[{"jwtAuth": []}],
         parameters=[workspace_header],
     )
     def post(self, request, deal_id, activity_id):
