@@ -17,14 +17,38 @@ def submit_public_form(*, form, data: dict):
         return isinstance(value, str) and "@" in value and "." in value
 
     def normalize_label(label):
-        return " ".join(label.lower().split())
+        return " ".join(str(label).lower().replace("_", " ").split())
+
+    normalized_data = {
+        normalize_label(key): value for key, value in (data or {}).items()
+    }
+
+    def split_full_name(value):
+        if not isinstance(value, str):
+            return None, None
+        parts = value.strip().split()
+        if not parts:
+            return None, None
+        first_name = parts[0]
+        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+        return first_name, last_name
+
+    full_name_first, full_name_last = split_full_name(normalized_data.get("full name"))
 
     lead_payload = {}
     answers = []
 
     for field in form.fields.all():
-        if field.label in data:
-            value = data[field.label]
+        field_key = normalize_label(field.label)
+        value = None
+        if field_key in normalized_data:
+            value = normalized_data[field_key]
+        elif field_key == "first name" and full_name_first:
+            value = full_name_first
+        elif field_key == "last name" and full_name_last:
+            value = full_name_last
+
+        if value is not None:
 
             answers.append(
                 {
@@ -61,6 +85,24 @@ def submit_public_form(*, form, data: dict):
 
             if map_field != "none":
                 lead_payload[map_field] = value
+
+    if "email" in normalized_data and "email" not in lead_payload:
+        lead_payload["email"] = normalized_data["email"]
+
+    if "phone" in normalized_data and "phone" not in lead_payload:
+        lead_payload["phone"] = normalized_data["phone"]
+
+    if "full name" in normalized_data:
+        full_name = normalized_data["full name"]
+        if isinstance(full_name, str):
+            name_parts = full_name.strip().split()
+            if name_parts and "first_name" not in lead_payload:
+                lead_payload["first_name"] = name_parts[0]
+            if len(name_parts) > 1 and "last_name" not in lead_payload:
+                lead_payload["last_name"] = " ".join(name_parts[1:])
+
+    if "company_name" in normalized_data and "company" not in lead_payload:
+        lead_payload["company"] = normalized_data["company_name"]
 
     lead_payload["display_number"] = get_next_display_number(workspace, "lead")
 
