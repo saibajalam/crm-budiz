@@ -4,6 +4,13 @@ from automation.selectors import get_active_rules_for_trigger
 from automation.evaluator import evaluate_conditions
 
 
+def _rule_conditions(rule):
+    manager = getattr(rule, "conditions", None)
+    if manager is not None:
+        return manager.all()
+    return rule.automationcondition_set.all()
+
+
 def _build_payload(instance):
     if isinstance(instance, dict):
         return instance
@@ -21,7 +28,7 @@ def get_matched_rules(workspace, trigger, instance):
     payload = _build_payload(instance)
 
     for rule in rules:
-        if evaluate_conditions(rule.conditions.all(), payload):
+        if evaluate_conditions(_rule_conditions(rule), payload):
             matched.append(rule)
 
     return matched

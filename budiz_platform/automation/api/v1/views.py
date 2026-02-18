@@ -8,6 +8,7 @@ from workspaces.utils import get_user_workspace
 
 from drf_spectacular.utils import extend_schema, OpenApiResponse
 from common.swagger import workspace_header
+from django.db import transaction
 
 from automation.models import AutomationRule
 from .serializers import AutomationRuleSerializer
@@ -45,17 +46,16 @@ class AutomationRuleListCreateAPIView(APIView):
     def post(self, request):
         workspace = get_user_workspace(request.user)
 
-        serializer = AutomationRuleSerializer(
-            data=request.data,
-            context={"workspace": workspace},
-        )
-        serializer.is_valid(raise_exception=True)
-        rule = serializer.save()
+        with transaction.atomic():
+            serializer = AutomationRuleSerializer(
+                data=request.data,
+                context={"workspace": workspace, "user": request.user},
+            )
+            serializer.is_valid(raise_exception=True)
+            rule = serializer.save()
+            response_data = AutomationRuleSerializer(rule).data
 
-        return Response(
-            AutomationRuleSerializer(rule).data,
-            status=status.HTTP_201_CREATED,
-        )
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class AutomationRuleDetailAPIView(APIView):
@@ -91,16 +91,18 @@ class AutomationRuleDetailAPIView(APIView):
     )
     def patch(self, request, rule_id):
         rule = self.get_object(request, rule_id)
-        serializer = AutomationRuleSerializer(
-            rule,
-            data=request.data,
-            partial=True,
-            context={"workspace": rule.workspace},
-        )
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
+        with transaction.atomic():
+            serializer = AutomationRuleSerializer(
+                rule,
+                data=request.data,
+                partial=True,
+                context={"workspace": rule.workspace},
+            )
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            response_data = serializer.data
 
-        return Response(serializer.data)
+        return Response(response_data)
 
     @extend_schema(
         responses={204: OpenApiResponse(description="Automation rule deleted")},

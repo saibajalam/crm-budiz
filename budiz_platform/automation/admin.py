@@ -9,7 +9,7 @@ from .models import (
 
 @admin.register(AutomationRule)
 class AutomationRuleAdmin(admin.ModelAdmin):
-    list_display = ("name", "trigger", "workspace", "is_active")
+    list_display = ("name", "trigger", "workspace", "is_active", "event_name")
 
 
 @admin.register(AutomationCondition)
@@ -19,7 +19,7 @@ class AutomationConditionAdmin(admin.ModelAdmin):
 
 @admin.register(AutomationAction)
 class AutomationActionAdmin(admin.ModelAdmin):
-    list_display = ("rule", "action_type", "params")
+    list_display = ("rule", "action_type", "config", "order")
 
 
 @admin.register(AutomationExecutionLog)
@@ -27,8 +27,10 @@ class AutomationExecutionLogAdmin(admin.ModelAdmin):
     list_display = (
         "workspace",
         "rule",
-        "model_name",
-        "object_id",
+        "target_model",
+        "target_object_id",
         "executed_at",
-        "success",
+        "status",
+        "error_message",
+        "error_trace",
     )

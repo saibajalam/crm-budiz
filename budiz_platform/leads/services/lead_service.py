@@ -1,32 +1,56 @@
 from django.db import transaction
 from leads.models import Lead
 
-# automation import
-try:
-    from automation.services.event_dispatcher import emit_event
-except Exception:
-    emit_event = None
-
 
 @transaction.atomic
 def create_lead(*, workspace, payload: dict, created_by):
     """
-    Central place for creating leads.
-    ALL lead creation must go through here.
+    CENTRAL LEAD CREATION SERVICE
+    All lead creation must go through here.
+    Triggers automation events.
     """
 
     payload = dict(payload)
     payload.pop("workspace", None)
     payload.pop("created_by", None)
 
-    lead = Lead.objects.create(workspace=workspace, created_by=created_by, **payload)
+    lead = Lead.objects.create(
+        workspace=workspace,
+        created_by=created_by,
+        **payload,
+    )
 
-    # 🔥 AUTOMATION TRIGGER
-    if emit_event:
-        emit_event(
-            event_name="lead_created",
-            instance=lead,
-            user=created_by,
-        )
+    # ---------------------------------------
+    # AUTOMATION EVENT
+    # ---------------------------------------
+    _emit_lead_created_event(lead, created_by)
 
     return lead
+
+
+# ---------------------------------------
+# EVENT EMITTER
+# ---------------------------------------
+def _emit_lead_created_event(lead, user):
+    """
+    Lazy import to avoid circular imports.
+    """
+
+    try:
+        from automation.services.event_dispatcher import emit_event
+    except Exception:
+        return
+
+    emit_event(
+        event_name="lead.created",
+        workspace=lead.workspace,
+        payload={
+            "id": lead.id,
+            "model": "lead",
+            "email": lead.email,
+            "phone": lead.phone,
+            "status": lead.status,
+            "assigned_to": lead.assigned_to_id,
+        },
+        user=user,
+    )

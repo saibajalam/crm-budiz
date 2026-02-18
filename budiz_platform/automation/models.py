@@ -14,7 +14,7 @@ class AutomationRule(TimeStampedModel):
 
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
-
+    event_name = models.CharField(max_length=255)
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     trigger = models.CharField(max_length=50)
 
@@ -43,25 +43,74 @@ class AutomationAction(TimeStampedModel):
     rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE)
 
     action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
-    params = models.JSONField(default=dict)
+    config = models.JSONField(default=dict)
+    order = models.IntegerField(default=0)
 
     class Meta:
         db_table = "automation_actions"
 
 
 class AutomationExecutionLog(TimeStampedModel):
-    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE)
-    rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE)
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name="automation_logs"
+    )
 
-    object_id = models.IntegerField()
+    rule = models.ForeignKey(
+        AutomationRule,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="execution_logs",
+    )
 
-    model_name = models.CharField(max_length=50)
+    # WHAT triggered this
+    event_type = models.CharField(max_length=100)
+
+    # object reference
+    target_object_id = models.IntegerField(null=True, blank=True)
+    target_model = models.CharField(max_length=50, null=True, blank=True)
+
+    # which action executed
+    action_type = models.CharField(max_length=100, null=True, blank=True)
+
+    # execution result
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ("success", "Success"),
+            ("failed", "Failed"),
+            ("skipped", "Skipped"),
+        ],
+        default="success",
+    )
+
+    error_message = models.TextField(null=True, blank=True)
+    error_trace = models.TextField(null=True, blank=True)
+
+    # payload snapshot
+    payload = models.JSONField(default=dict)
+
+    # metadata (extra)
+    metadata = models.JSONField(default=dict, blank=True)
+
+    # retry safety
+    idempotency_key = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        db_index=True,
+    )
+
+    # performance tracking
+    duration_ms = models.IntegerField(null=True, blank=True)
+
     executed_at = models.DateTimeField(auto_now_add=True)
-
-    status = models.CharField(max_length=50)
-    message = models.TextField(null=True, blank=True)
-    success = models.BooleanField(default=True)
-    metadata = models.JSONField(default=dict)
 
     class Meta:
         db_table = "automation_execution_logs"
+        ordering = ["-executed_at"]
+        indexes = [
+            models.Index(fields=["workspace", "rule"]),
+            models.Index(fields=["event_type"]),
+            models.Index(fields=["idempotency_key"]),
+        ]

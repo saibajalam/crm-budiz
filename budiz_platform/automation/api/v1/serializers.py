@@ -40,8 +40,14 @@ class AutomationActionSerializer(serializers.ModelSerializer):
 # RULE
 # ---------------------------
 class AutomationRuleSerializer(serializers.ModelSerializer):
-    conditions = AutomationConditionSerializer(many=True)
-    actions = AutomationActionSerializer(many=True)
+    conditions = AutomationConditionSerializer(
+        many=True,
+        source="automationcondition_set",
+    )
+    actions = AutomationActionSerializer(
+        many=True,
+        source="automationaction_set",
+    )
 
     class Meta:
         model = AutomationRule
@@ -60,10 +66,17 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return val
 
     def create(self, validated_data):
-        conditions_data = validated_data.pop("conditions", [])
-        actions_data = validated_data.pop("actions", [])
+        conditions_data = validated_data.pop("automationcondition_set", [])
+        actions_data = validated_data.pop("automationaction_set", [])
 
         workspace = self.context["workspace"]
+        created_by = self.context.get("user")
+        if created_by is None:
+            request = self.context.get("request")
+            created_by = getattr(request, "user", None)
+
+        if created_by is not None and getattr(created_by, "is_authenticated", False):
+            validated_data["created_by"] = created_by
 
         rule = AutomationRule.objects.create(
             workspace=workspace,
@@ -79,8 +92,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return rule
 
     def update(self, instance, validated_data):
-        conditions_data = validated_data.pop("conditions", None)
-        actions_data = validated_data.pop("actions", None)
+        conditions_data = validated_data.pop("automationcondition_set", None)
+        actions_data = validated_data.pop("automationaction_set", None)
 
         instance.name = validated_data.get("name", instance.name)
         instance.trigger = validated_data.get("trigger", instance.trigger)
@@ -88,12 +101,12 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         instance.save()
 
         if conditions_data is not None:
-            instance.conditions.all().delete()
+            instance.automationcondition_set.all().delete()
             for c in conditions_data:
                 AutomationCondition.objects.create(rule=instance, **c)
 
         if actions_data is not None:
-            instance.actions.all().delete()
+            instance.automationaction_set.all().delete()
             for a in actions_data:
                 AutomationAction.objects.create(rule=instance, **a)
 
