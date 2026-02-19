@@ -57,3 +57,23 @@ class UserAnalytics(models.Model):
             models.Index(fields=["user", "date"]),
             models.Index(fields=["workspace", "date"]),
         ]
+
+
+class AutomationAnalytics(models.Model):
+    workspace = models.ForeignKey(
+        "workspaces.Workspace",
+        on_delete=models.CASCADE,
+        related_name="automation_analytics",
+    )
+    date = models.DateField()
+
+    total_executions = models.IntegerField(default=0)
+    success_count = models.IntegerField(default=0)
+    failed_count = models.IntegerField(default=0)
+
+    leads_created_via_automation = models.IntegerField(default=0)
+    deals_won_via_automation = models.IntegerField(default=0)
+
+    class Meta:
+        db_table = "automation_analytics"
+        unique_together = ("workspace", "date")

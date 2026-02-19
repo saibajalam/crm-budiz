@@ -1,6 +1,7 @@
 from django.urls import path
 from .views import (
     AnalyticsDashboardAPIView,
+    AutomationRulePerformanceAPIView,
     DealAnalyticsListAPIView,
     UserAnalyticsListAPIView,
     UserAnalyticsDetailAPIView,
@@ -12,6 +13,7 @@ from .views import (
     UserConversionFunnelAPIView,
     RevenueDashboardAPIView,
     UnifiedDashboardAPIView,
+    AutomationDashboardAPIView,
 )
 
 app_name = "analytics"
@@ -73,5 +75,15 @@ urlpatterns = [
         "workspace/unified-dashboard/",
         UnifiedDashboardAPIView.as_view(),
         name="unified-dashboard",
+    ),
+    path(
+        "automation/dashboard/",
+        AutomationDashboardAPIView.as_view(),
+        name="automation-dashboard",
+    ),
+    path(
+        "automation/rules/",
+        AutomationRulePerformanceAPIView.as_view(),
+        name="automation-rules",
     ),
 ]

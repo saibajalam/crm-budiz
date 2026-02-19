@@ -4,6 +4,8 @@ TRIGGERS = [
     "lead.status_changed",
     "deal.created",
     "deal.won",
+    "deal.stage_changed",
+    "task.completed",
 ]
 
 ACTION_CHOICES = [

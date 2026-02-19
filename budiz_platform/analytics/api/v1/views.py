@@ -1,14 +1,10 @@
-from django.shortcuts import render
 from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
-from django.db.models import Sum, Avg, Count, Q
+from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import OrderingFilter
 from django.core.cache import cache
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from common.swagger import workspace_header
@@ -33,6 +29,8 @@ from ...services.time_to_conversion import time_to_conversion_analytics
 from ...services.funnel_service import get_user_funnel
 from ...services.revenue_service import get_revenue_dashboard
 from ...services.dashboard_service import get_dashboard_data
+from analytics.models import AutomationAnalytics
+from automation.models import AutomationExecutionLog
 
 CACHE_TTL = 300  # seconds, 5 minutes
 
@@ -750,3 +748,48 @@ class UnifiedDashboardAPIView(APIView):
                 "data": data,
             }
         )
+
+
+# =====================================================
+
+
+class AutomationDashboardAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
+
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+
+        data = AutomationAnalytics.objects.filter(workspace=workspace).order_by(
+            "-date"
+        )[:30]
+
+        return Response(
+            [
+                {
+                    "date": d.date,
+                    "total": d.total_executions,
+                    "success": d.success_count,
+                    "failed": d.failed_count,
+                }
+                for d in data
+            ]
+        )
+
+
+class AutomationRulePerformanceAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
+
+    def get(self, request):
+        workspace = get_user_workspace(request.user)
+
+        logs = (
+            AutomationExecutionLog.objects.filter(workspace=workspace)
+            .values("rule__id", "rule__name")
+            .annotate(
+                total=Count("id"),
+                success=Count("id", filter=Q(success=True)),
+                failed=Count("id", filter=Q(success=False)),
+            )
+        )
+
+        return Response(logs)

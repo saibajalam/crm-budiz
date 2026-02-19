@@ -1,7 +1,7 @@
 from django.forms.models import model_to_dict
 
 from automation.selectors import get_active_rules_for_trigger
-from automation.evaluator import evaluate_conditions
+from budiz_platform.automation.services.evaluator import evaluate_conditions
 
 
 def _rule_conditions(rule):

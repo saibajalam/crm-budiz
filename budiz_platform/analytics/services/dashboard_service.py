@@ -15,9 +15,9 @@ from django.db.models.functions import TruncMonth
 from django.utils import timezone
 from datetime import timedelta
 from django.core.cache import cache
+from analytics.models import AutomationAnalytics
 
-from deals.models import Deal
-from leads.models import LeadActivity
+start_date = timezone.now() - timedelta(days=30)
 
 
 CACHE_TTL = 300  # seconds, 5 min
@@ -36,12 +36,24 @@ def get_dashboard_data(workspace, days=30):
     revenue = get_revenue_dashboard(workspace, days)
     conversion = time_to_conversion_analytics(workspace, days)
     activities = get_activity_stats(workspace, days)
+    automation_data = AutomationAnalytics.objects.filter(
+        workspace=workspace, date__gte=start_date
+    ).aggregate(
+        total=Sum("total_executions"),
+        success=Sum("success_count"),
+        failed=Sum("failed_count"),
+    )
 
     result = {
         "revenue": revenue,
         "user_performance": user_funnel,
         "conversion_time": conversion,
         "activities": activities,
+        "automation": {
+            "total_executions": automation_data["total"] or 0,
+            "success_count": automation_data["success"] or 0,
+            "failed_count": automation_data["failed"] or 0,
+        },
     }
 
     cache.set(cache_key, result, CACHE_TTL)

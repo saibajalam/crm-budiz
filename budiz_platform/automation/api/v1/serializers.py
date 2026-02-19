@@ -3,6 +3,7 @@ from automation.models import (
     AutomationRule,
     AutomationCondition,
     AutomationAction,
+    AutomationExecutionLog,
 )
 from automation.constants import TRIGGERS, ACTION_CHOICES, OPERATORS
 
@@ -25,9 +26,11 @@ class AutomationConditionSerializer(serializers.ModelSerializer):
 # ACTION
 # ---------------------------
 class AutomationActionSerializer(serializers.ModelSerializer):
+    config = serializers.JSONField()
+
     class Meta:
         model = AutomationAction
-        fields = ["id", "action_type", "params"]
+        fields = ["id", "action_type", "config"]
 
     def validate_action_type(self, val):
         action_types = {choice[0] for choice in ACTION_CHOICES}
@@ -40,6 +43,7 @@ class AutomationActionSerializer(serializers.ModelSerializer):
 # RULE
 # ---------------------------
 class AutomationRuleSerializer(serializers.ModelSerializer):
+    trigger = serializers.ChoiceField(source="event_name", choices=TRIGGERS)
     conditions = AutomationConditionSerializer(
         many=True,
         source="automationcondition_set",
@@ -61,7 +65,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         ]
 
     def validate_trigger(self, val):
-        if val not in TRIGGERS:
+        trigger_value = val if isinstance(val, str) else val.get("event_name")
+        if trigger_value not in TRIGGERS:
             raise serializers.ValidationError("Invalid trigger")
         return val
 
@@ -96,7 +101,7 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         actions_data = validated_data.pop("automationaction_set", None)
 
         instance.name = validated_data.get("name", instance.name)
-        instance.trigger = validated_data.get("trigger", instance.trigger)
+        instance.event_name = validated_data.get("event_name", instance.event_name)
         instance.is_active = validated_data.get("is_active", instance.is_active)
         instance.save()
 
@@ -111,3 +116,21 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
                 AutomationAction.objects.create(rule=instance, **a)
 
         return instance
+
+
+class AutomationExecutionLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AutomationExecutionLog
+        fields = [
+            "id",
+            "rule",
+            "object_id",
+            "model_name",
+            "status",
+            "success",
+            "message",
+            "metadata",
+            "executed_at",
+        ]
+
+        read_only_fields = fields

@@ -2,6 +2,8 @@ from django.db import models
 from workspaces.models import Workspace
 from django.conf import settings
 from common.models import TimeStampedModel
+from .constants import TRIGGERS, ACTION_CHOICES
+
 
 # Create your models here.
 
@@ -10,13 +12,16 @@ User = settings.AUTH_USER_MODEL
 
 class AutomationRule(TimeStampedModel):
 
-    workspace = models.ForeignKey(Workspace, on_delete=models.CASCADE)
+    workspace = models.ForeignKey(
+        Workspace,
+        on_delete=models.CASCADE,
+        related_name="automation_rules",
+    )
 
     name = models.CharField(max_length=255)
     is_active = models.BooleanField(default=True)
-    event_name = models.CharField(max_length=255)
+    event_name = models.CharField(max_length=255, choices=[(e, e) for e in TRIGGERS])
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
-    trigger = models.CharField(max_length=50)
 
     class Meta:
         db_table = "automation_rules"
@@ -27,7 +32,9 @@ class AutomationRule(TimeStampedModel):
 
 class AutomationCondition(TimeStampedModel):
 
-    rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE)
+    rule = models.ForeignKey(
+        AutomationRule, related_name="conditions", on_delete=models.CASCADE
+    )
 
     field = models.CharField(max_length=100)
     operator = models.CharField(max_length=50)
@@ -38,9 +45,10 @@ class AutomationCondition(TimeStampedModel):
 
 
 class AutomationAction(TimeStampedModel):
-    from .constants import ACTION_CHOICES
 
-    rule = models.ForeignKey(AutomationRule, on_delete=models.CASCADE)
+    rule = models.ForeignKey(
+        AutomationRule, related_name="actions", on_delete=models.CASCADE
+    )
 
     action_type = models.CharField(max_length=50, choices=ACTION_CHOICES)
     config = models.JSONField(default=dict)
@@ -64,14 +72,16 @@ class AutomationExecutionLog(TimeStampedModel):
     )
 
     # WHAT triggered this
-    event_type = models.CharField(max_length=100)
+    event_type = models.CharField(
+        max_length=100, choices=[(e, e) for e in TRIGGERS], blank=True
+    )
 
     # object reference
     target_object_id = models.IntegerField(null=True, blank=True)
     target_model = models.CharField(max_length=50, null=True, blank=True)
 
     # which action executed
-    action_type = models.CharField(max_length=100, null=True, blank=True)
+    action_type = models.CharField(max_length=100, choices=ACTION_CHOICES, blank=True)
 
     # execution result
     status = models.CharField(

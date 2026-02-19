@@ -9,7 +9,7 @@ from .models import (
 
 @admin.register(AutomationRule)
 class AutomationRuleAdmin(admin.ModelAdmin):
-    list_display = ("name", "trigger", "workspace", "is_active", "event_name")
+    list_display = ("name", "workspace", "is_active", "event_name", "created_by")
 
 
 @admin.register(AutomationCondition)

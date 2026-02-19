@@ -1,4 +1,4 @@
-from .constants import OPERATORS
+from ..constants import OPERATORS
 
 
 def evaluate_conditions(conditions, payload):
