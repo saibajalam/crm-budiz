@@ -14,7 +14,7 @@ from automation.constants import TRIGGERS, ACTION_CHOICES, OPERATORS
 class AutomationConditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationCondition
-        fields = ["id", "field", "operator", "value"]
+        fields = ["id", "rule", "field", "operator", "value"]
 
     def validate_operator(self, val):
         if val not in OPERATORS:
@@ -26,11 +26,9 @@ class AutomationConditionSerializer(serializers.ModelSerializer):
 # ACTION
 # ---------------------------
 class AutomationActionSerializer(serializers.ModelSerializer):
-    config = serializers.JSONField()
-
     class Meta:
         model = AutomationAction
-        fields = ["id", "action_type", "config"]
+        fields = ["id", "rule", "action_type", "config", "order"]
 
     def validate_action_type(self, val):
         action_types = {choice[0] for choice in ACTION_CHOICES}
@@ -43,14 +41,13 @@ class AutomationActionSerializer(serializers.ModelSerializer):
 # RULE
 # ---------------------------
 class AutomationRuleSerializer(serializers.ModelSerializer):
-    trigger = serializers.ChoiceField(source="event_name", choices=TRIGGERS)
     conditions = AutomationConditionSerializer(
         many=True,
-        source="automationcondition_set",
+        source="conditions",
     )
     actions = AutomationActionSerializer(
         many=True,
-        source="automationaction_set",
+        source="actions",
     )
 
     class Meta:
@@ -58,21 +55,22 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "name",
-            "trigger",
+            "event_name",
             "is_active",
+            "created_by",
             "conditions",
             "actions",
         ]
 
-    def validate_trigger(self, val):
+    def validate_event_name(self, val):
         trigger_value = val if isinstance(val, str) else val.get("event_name")
         if trigger_value not in TRIGGERS:
-            raise serializers.ValidationError("Invalid trigger")
+            raise serializers.ValidationError("Invalid event name")
         return val
 
     def create(self, validated_data):
-        conditions_data = validated_data.pop("automationcondition_set", [])
-        actions_data = validated_data.pop("automationaction_set", [])
+        conditions_data = validated_data.pop("conditions", [])
+        actions_data = validated_data.pop("actions", [])
 
         workspace = self.context["workspace"]
         created_by = self.context.get("user")
@@ -97,8 +95,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return rule
 
     def update(self, instance, validated_data):
-        conditions_data = validated_data.pop("automationcondition_set", None)
-        actions_data = validated_data.pop("automationaction_set", None)
+        conditions_data = validated_data.pop("conditions", None)
+        actions_data = validated_data.pop("actions", None)
 
         instance.name = validated_data.get("name", instance.name)
         instance.event_name = validated_data.get("event_name", instance.event_name)
@@ -106,12 +104,12 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         instance.save()
 
         if conditions_data is not None:
-            instance.automationcondition_set.all().delete()
+            instance.conditions.all().delete()
             for c in conditions_data:
                 AutomationCondition.objects.create(rule=instance, **c)
 
         if actions_data is not None:
-            instance.automationaction_set.all().delete()
+            instance.actions.all().delete()
             for a in actions_data:
                 AutomationAction.objects.create(rule=instance, **a)
 
@@ -123,13 +121,18 @@ class AutomationExecutionLogSerializer(serializers.ModelSerializer):
         model = AutomationExecutionLog
         fields = [
             "id",
+            "workspace",
             "rule",
-            "object_id",
-            "model_name",
+            "event_type",
+            "action_type",
+            "payload",
+            "target_object_id",
             "status",
-            "success",
-            "message",
+            "error_message",
+            "error_trace",
             "metadata",
+            "idempotency_key",
+            "duration_ms",
             "executed_at",
         ]
 

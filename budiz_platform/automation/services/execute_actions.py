@@ -17,6 +17,6 @@ def execute_actions(actions, payload, workspace, user):
     for action in actions:
         executor = ACTION_MAP.get(action.action_type)
         if executor:
-            result = executor(payload, action.params, workspace, user)
+            result = executor(payload, action.config, workspace, user)
             results.append(result)
     return results

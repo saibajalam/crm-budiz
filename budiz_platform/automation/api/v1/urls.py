@@ -16,7 +16,7 @@ urlpatterns = [
     path("logs/", AutomationLogListAPIView.as_view()),
     path("logs/<int:rule_id>/", AutomationRuleLogListAPIView.as_view()),
     path("logs/detail/<int:log_id>/", AutomationLogDetailAPIView.as_view()),
-    path("logs/<int:rule_id>/retry/", RetryAutomationLogAPIView.as_view()),
+    path("logs/<int:log_id>/retry/", RetryAutomationLogAPIView.as_view()),
 ]
 
 app_name = "automation"

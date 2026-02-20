@@ -1,11 +1,11 @@
-from ..engine import process_event
+from ..tasks import run_automation_event
 
 
 def emit_event(event_name, instance, user=None):
     workspace = getattr(instance, "workspace", None)
     payload = {
-        "object_id": instance.id,
-        "model": instance.__class__.__name__,
+        "target_object_id": instance.id,
+        "target_model": instance.__class__.__name__,
         "workspace_id": workspace.id,
         "user_id": user.id if user else None,
     }
@@ -15,5 +15,10 @@ def emit_event(event_name, instance, user=None):
     if not workspace:
         return
 
-    # Direct call to engine (sync)
-    process_event(event_name, payload, workspace, user)
+    # async dispatch to Celery
+    run_automation_event.delay(
+        workspace_id=workspace.id,
+        event_name=event_name,
+        payload=payload,
+        user_id=user.id if user else None,
+    )

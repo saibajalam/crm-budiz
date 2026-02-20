@@ -1,14 +1,17 @@
 from django.forms.models import model_to_dict
 
 from automation.selectors import get_active_rules_for_trigger
-from budiz_platform.automation.services.evaluator import evaluate_conditions
+from automation.services.evaluator import evaluate_conditions
 
 
 def _rule_conditions(rule):
     manager = getattr(rule, "conditions", None)
     if manager is not None:
         return manager.all()
-    return rule.automationcondition_set.all()
+    legacy_manager = getattr(rule, "conditions", None)
+    if legacy_manager is not None:
+        return legacy_manager.all()
+    return rule.conditions.all()
 
 
 def _build_payload(instance):

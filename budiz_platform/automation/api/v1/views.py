@@ -232,7 +232,7 @@ class RetryAutomationLogAPIView(APIView):
             AutomationExecutionLog,
             id=log_id,
             workspace=workspace,
-            success=False,
+            status="failed",
         )
 
         if log.status != "failed":
@@ -241,7 +241,7 @@ class RetryAutomationLogAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        payload = log.metadata
+        payload = log.payload
 
         process_event(
             event_name=log.event_type,

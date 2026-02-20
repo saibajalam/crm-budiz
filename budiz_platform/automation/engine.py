@@ -31,7 +31,10 @@ def _rule_conditions(rule):
     manager = getattr(rule, "conditions", None)
     if manager is not None:
         return manager.all()
-    return rule.automationcondition_set.all()
+    legacy_manager = getattr(rule, "conditions", None)
+    if legacy_manager is not None:
+        return legacy_manager.all()
+    return rule.conditions.all()
 
 
 def _rule_actions(rule):
@@ -41,7 +44,10 @@ def _rule_actions(rule):
     manager = getattr(rule, "actions", None)
     if manager is not None:
         return manager.all()
-    return rule.automationaction_set.all()
+    legacy_manager = getattr(rule, "actions", None)
+    if legacy_manager is not None:
+        return legacy_manager.all()
+    return rule.actions.all()
 
 
 # ============================================================
@@ -72,7 +78,7 @@ def process_event(event_name: str, payload: dict, workspace, user=None):
             # IDEMPOTENCY KEY
             # prevents duplicate execution
             # -----------------------------------
-            key = f"{event_name}:{rule.id}:{payload.get('id')}"
+            key = f"{event_name}:{rule.id}:{payload.get('target_object_id')}"
 
             if already_executed(key):
                 continue
@@ -94,8 +100,8 @@ def process_event(event_name: str, payload: dict, workspace, user=None):
                     rule=rule,
                     event_type=event_name,
                     payload=payload,
-                    target_object_id=payload.get("id"),
-                    target_model=payload.get("model"),
+                    target_object_id=payload.get("target_object_id"),
+                    target_model=payload.get("target_model"),
                     idempotency_key=key,
                     action_type="rule_execution",
                     func=lambda: execute_actions(
@@ -130,8 +136,8 @@ def process_event(event_name: str, payload: dict, workspace, user=None):
                 rule=rule,
                 event_type=event_name,
                 payload=payload,
-                target_object_id=payload.get("id"),
-                target_model=payload.get("model"),
+                target_object_id=payload.get("target_object_id"),
+                target_model=payload.get("target_model"),
                 status="failed",
                 error_message=str(e),
                 error_trace=traceback.format_exc(),
