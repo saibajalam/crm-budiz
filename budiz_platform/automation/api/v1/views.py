@@ -3,7 +3,7 @@ from rest_framework.response import Response
 from rest_framework import status
 
 from rest_framework.permissions import IsAuthenticated
-from budiz_platform.automation.engine import process_event
+from automation.engine import process_event
 from workspaces.permissions import IsWorkspaceMember
 from workspaces.utils import get_user_workspace
 

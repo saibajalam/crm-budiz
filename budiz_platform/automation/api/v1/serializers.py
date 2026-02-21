@@ -41,11 +41,11 @@ class AutomationActionSerializer(serializers.ModelSerializer):
 # RULE
 # ---------------------------
 class AutomationRuleSerializer(serializers.ModelSerializer):
-    conditions = AutomationConditionSerializer(
+    automation_conditions = AutomationConditionSerializer(
         many=True,
         source="conditions",
     )
-    actions = AutomationActionSerializer(
+    automation_actions = AutomationActionSerializer(
         many=True,
         source="actions",
     )
@@ -58,8 +58,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
             "event_name",
             "is_active",
             "created_by",
-            "conditions",
-            "actions",
+            "automation_conditions",
+            "automation_actions",
         ]
 
     def validate_event_name(self, val):
@@ -69,8 +69,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return val
 
     def create(self, validated_data):
-        conditions_data = validated_data.pop("conditions", [])
-        actions_data = validated_data.pop("actions", [])
+        conditions_data = validated_data.pop("automation_conditions", [])
+        actions_data = validated_data.pop("automation_actions", [])
 
         workspace = self.context["workspace"]
         created_by = self.context.get("user")
@@ -95,8 +95,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return rule
 
     def update(self, instance, validated_data):
-        conditions_data = validated_data.pop("conditions", None)
-        actions_data = validated_data.pop("actions", None)
+        conditions_data = validated_data.pop("automation_conditions", None)
+        actions_data = validated_data.pop("automation_actions", None)
 
         instance.name = validated_data.get("name", instance.name)
         instance.event_name = validated_data.get("event_name", instance.event_name)
