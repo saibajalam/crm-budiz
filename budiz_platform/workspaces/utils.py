@@ -31,14 +31,25 @@ If you didn’t request this, you can ignore this email.
         fail_silently=False,
     )
 
+def _resolve_workspace_id_from_user(user):
+    workspace_id = getattr(user, "_current_workspace_id", None)
+    if workspace_id is None:
+        return None
+
+    try:
+        return int(workspace_id)
+    except (TypeError, ValueError):
+        return None
 
 
 def get_user_workspace(user):
-    membership = (
-        user.workspace_members
-        .filter(is_active=True)
-        .select_related("workspace")
-        .first()
-    )
+    workspace_id = _resolve_workspace_id_from_user(user)
 
+    memberships = user.workspace_members.filter(is_active=True).select_related("workspace")
+
+    if workspace_id is not None:
+        membership = memberships.filter(workspace_id=workspace_id).first()
+        return membership.workspace if membership else None
+
+    membership = memberships.first()
     return membership.workspace if membership else None

@@ -1,8 +1,6 @@
 from rest_framework import serializers
 from ...models import DealAnalytics, UserAnalytics
 
-# The serializers for the analytics API endpoints is not used in the current implementation but is defined here for the future use.
-
 
 class DealAnalyticsSerializer(serializers.ModelSerializer):
     """Serializer for workspace-level deal analytics"""

@@ -449,7 +449,7 @@ class FormConversionFunnelAPIView(APIView):
         # 🔹 deals
         deals_qs = Deal.objects.filter(
             workspace=workspace,
-            lead_id__in=lead_ids,
+            created_from_lead_id__in=lead_ids,
         )
 
         deals_count = deals_qs.count()
@@ -489,7 +489,7 @@ class FormConversionFunnelAPIView(APIView):
 
 
 class UserConversionFunnelAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     @extend_schema(
         responses={200: OpenApiResponse(description="User funnel analytics")},
@@ -543,7 +543,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
         end_date = timezone.now().date()
         start_date = end_date - timedelta(days=days)
 
-        # 🔹 submissions
+        # submissions
         submissions_qs = FormSubmission.objects.filter(
             workspace=workspace,
             submitted_at__date__range=[start_date, end_date],
@@ -551,27 +551,27 @@ class WorkspaceFunnelDashboardAPIView(APIView):
 
         submissions_count = submissions_qs.count()
 
-        # 🔹 leads
+        # leads
         lead_ids = submissions_qs.exclude(lead=None).values_list("lead_id", flat=True)
 
         unique_lead_ids = list(set(lead_ids))
         leads_count = len(unique_lead_ids)
 
-        # 🔹 deals
+        # deals
         deals_qs = Deal.objects.filter(
             workspace=workspace,
-            lead_id__in=unique_lead_ids,
+            created_from_lead_id__in=unique_lead_ids,
         )
 
         deals_count = deals_qs.count()
 
-        # 🔹 won deals
+        # won deals
         won_qs = deals_qs.filter(pipeline_stage="won")
         won_count = won_qs.count()
 
         revenue = won_qs.aggregate(total=Sum("value"))["total"] or 0
 
-        # 🔹 rates
+        # rates
         submission_to_lead = (
             (leads_count / submissions_count) * 100 if submissions_count else 0
         )
@@ -580,7 +580,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
 
         deal_to_won = (won_count / deals_count) * 100 if deals_count else 0
 
-        # 🔹 top forms
+        # top forms
         top_forms = (
             FormSubmission.objects.filter(
                 workspace=workspace,
@@ -601,7 +601,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
             )
 
             form_deals = Deal.objects.filter(
-                workspace=workspace, lead_id__in=form_leads
+                workspace=workspace, created_from_lead_id__in=form_leads
             )
 
             form_revenue = (
@@ -640,7 +640,7 @@ class WorkspaceFunnelDashboardAPIView(APIView):
 
 
 class TimeToConversionAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     @extend_schema(
         parameters=[
@@ -674,7 +674,9 @@ class TimeToConversionAPIView(APIView):
 
 
 class RevenueDashboardAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+    """Returns a dashboard of revenue metrics"""
+
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     @extend_schema(
         parameters=[
@@ -713,7 +715,7 @@ class UnifiedDashboardAPIView(APIView):
     Works seamlessly with batched signals and cache invalidation.
     """
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     @extend_schema(
         parameters=[
@@ -754,8 +756,17 @@ class UnifiedDashboardAPIView(APIView):
 
 
 class AutomationDashboardAPIView(APIView):
+    """Returns a dashboard of automation metrics"""
+
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Automation dashboard data")},
+        description="Get automation dashboard with metrics",
+        tags=["Automation"],
+        auth=[{"jwtAuth": []}],
+        parameters=[workspace_header],
+    )
     def get(self, request):
         workspace = get_user_workspace(request.user)
 
@@ -779,6 +790,15 @@ class AutomationDashboardAPIView(APIView):
 class AutomationRulePerformanceAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description="Automation rule performance data")
+        },
+        description="Get performance metrics for each automation rule",
+        tags=["Automation"],
+        auth=[{"jwtAuth": []}],
+        parameters=[workspace_header],
+    )
     def get(self, request):
         workspace = get_user_workspace(request.user)
 
@@ -787,8 +807,8 @@ class AutomationRulePerformanceAPIView(APIView):
             .values("rule__id", "rule__name")
             .annotate(
                 total=Count("id"),
-                success=Count("id", filter=Q(success=True)),
-                failed=Count("id", filter=Q(success=False)),
+                success=Count("id", filter=Q(status="success")),
+                failed=Count("id", filter=Q(status="failed")),
             )
         )
 

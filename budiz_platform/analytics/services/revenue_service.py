@@ -24,7 +24,6 @@ def get_revenue_dashboard(workspace, days=30):
     ).select_related(
         "assigned_to",
         "created_from_lead",
-        "created_from_lead__form",
     )
 
     won_qs = base_qs.filter(
@@ -127,10 +126,10 @@ def get_revenue_dashboard(workspace, days=30):
     # REVENUE BY FORM
     # ===============================
     revenue_by_form = (
-        won_qs.filter(created_from_lead__form__isnull=False)
+        won_qs.filter(created_from_lead__formsubmission__form__isnull=False)
         .values(
-            "created_from_lead__form",
-            "created_from_lead__form__name",
+            "created_from_lead__formsubmission__form",
+            "created_from_lead__formsubmission__form__name",
         )
         .annotate(
             revenue=Sum("value"),

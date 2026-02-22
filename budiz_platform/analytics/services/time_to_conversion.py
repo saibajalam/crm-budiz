@@ -11,7 +11,6 @@ def time_to_conversion_analytics(workspace, days=30):
     ).select_related(
         "assigned_to",
         "created_from_lead",
-        "created_from_lead__form",
     )
 
     qs = qs.annotate(
@@ -41,8 +40,8 @@ def time_to_conversion_analytics(workspace, days=30):
     # (assuming lead has form FK)
     per_form = (
         qs.values(
-            "created_from_lead__form",
-            "created_from_lead__form__name",
+            "created_from_lead__formsubmission__form",
+            "created_from_lead__formsubmission__form__name",
         )
         .annotate(
             total_conversions=Count("id"),

@@ -5,6 +5,6 @@ workspace_header = OpenApiParameter(
     name="X-Workspace-ID",
     type=OpenApiTypes.INT,
     location=OpenApiParameter.HEADER,
-    required=False,
+    required=True,
     description="Workspace ID for multi-tenant isolation",
 )
