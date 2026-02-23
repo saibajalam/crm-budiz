@@ -111,6 +111,7 @@ def submit_public_form(*, form, data: dict):
         workspace=workspace,
         payload=lead_payload,
         created_by=form.created_by,
+        automation_sync_fallback=False,
     )
 
     # ASSIGNMENT SERVICE

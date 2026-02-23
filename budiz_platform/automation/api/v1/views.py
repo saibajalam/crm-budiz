@@ -159,6 +159,7 @@ class AutomationLogListAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     @extend_schema(
+        operation_id="automation_logs_list",
         responses={200: AutomationExecutionLogSerializer(many=True)},
         description="List all automation execution logs in the workspace",
         tags=["Automation"],
@@ -180,6 +181,7 @@ class AutomationRuleLogListAPIView(APIView):
     permission_classes = [IsAuthenticated, IsWorkspaceMember]
 
     @extend_schema(
+        operation_id="automation_rule_logs_list",
         responses={200: AutomationExecutionLogSerializer(many=True)},
         description="List all execution logs for a specific automation rule",
         tags=["Automation"],

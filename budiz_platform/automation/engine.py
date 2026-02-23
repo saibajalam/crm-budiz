@@ -31,9 +31,6 @@ def _rule_conditions(rule):
     manager = getattr(rule, "conditions", None)
     if manager is not None:
         return manager.all()
-    legacy_manager = getattr(rule, "conditions", None)
-    if legacy_manager is not None:
-        return legacy_manager.all()
     return rule.conditions.all()
 
 
@@ -44,9 +41,6 @@ def _rule_actions(rule):
     manager = getattr(rule, "actions", None)
     if manager is not None:
         return manager.all()
-    legacy_manager = getattr(rule, "actions", None)
-    if legacy_manager is not None:
-        return legacy_manager.all()
     return rule.actions.all()
 
 

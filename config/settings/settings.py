@@ -180,6 +180,14 @@ SPECTACULAR_SETTINGS = {
     "COMPONENT_SPLIT_REQUEST": True,
     "SECURITY": [{"jwtAuth": []}],
     "ENUM_NAME_OVERRIDES": {
+        "EventNameEnum": [
+            "lead.created",
+            "lead.status_changed",
+            "deal.created",
+            "deal.won",
+            "deal.stage_changed",
+            "task.completed",
+        ],
         "LeadStatusEnum": [
             "new",
             "contacted",
@@ -239,3 +247,6 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+
+# If True, run automation synchronously when Celery/Redis is unavailable.
+AUTOMATION_SYNC_FALLBACK = True

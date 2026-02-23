@@ -14,6 +14,7 @@ ACTION_CHOICES = [
     ("create_task", "Create Task"),
     ("webhook", "Webhook"),
     ("update_field", "Update Field"),
+    ("rule_execution", "Rule Execution"),
 ]
 
 OPERATORS = {

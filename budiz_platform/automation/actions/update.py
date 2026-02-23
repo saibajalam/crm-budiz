@@ -3,17 +3,17 @@ def execute(payload, params, workspace, user):
     Update fields on Lead or Deal
     params = {"field": "status", "value": "contacted"}
     """
-    model = payload.get("model")
-    obj_id = payload.get("id")
+    target_model = payload.get("target_model")
+    target_object_id = payload.get("target_object_id")
 
-    if model == "Lead":
+    if target_model == "Lead":
         from leads.models import Lead
 
-        obj = Lead.objects.filter(id=obj_id, workspace=workspace).first()
-    elif model == "Deal":
+        obj = Lead.objects.filter(id=target_object_id, workspace=workspace).first()
+    elif target_model == "Deal":
         from deals.models import Deal
 
-        obj = Deal.objects.filter(id=obj_id, workspace=workspace).first()
+        obj = Deal.objects.filter(id=target_object_id, workspace=workspace).first()
     else:
         return False
 

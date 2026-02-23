@@ -81,7 +81,12 @@ class AutomationExecutionLog(TimeStampedModel):
     target_model = models.CharField(max_length=50, null=True, blank=True)
 
     # which action executed
-    action_type = models.CharField(max_length=100, choices=ACTION_CHOICES, blank=True)
+
+    action_type = models.CharField(
+        max_length=100,
+        choices=ACTION_CHOICES,
+        blank=True,
+    )
 
     # execution result
     status = models.CharField(

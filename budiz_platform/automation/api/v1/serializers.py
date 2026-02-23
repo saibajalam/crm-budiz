@@ -15,6 +15,9 @@ class AutomationConditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationCondition
         fields = ["id", "rule", "field", "operator", "value"]
+        extra_kwargs = {
+            "rule": {"read_only": True},
+        }
 
     def validate_operator(self, val):
         if val not in OPERATORS:
@@ -29,6 +32,9 @@ class AutomationActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationAction
         fields = ["id", "rule", "action_type", "config", "order"]
+        extra_kwargs = {
+            "rule": {"read_only": True},
+        }
 
     def validate_action_type(self, val):
         action_types = {choice[0] for choice in ACTION_CHOICES}

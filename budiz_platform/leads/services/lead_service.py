@@ -3,7 +3,7 @@ from leads.models import Lead
 
 
 @transaction.atomic
-def create_lead(*, workspace, payload: dict, created_by):
+def create_lead(*, workspace, payload: dict, created_by, automation_sync_fallback=True):
     """
     CENTRAL LEAD CREATION SERVICE
     All lead creation must go through here.
@@ -23,7 +23,11 @@ def create_lead(*, workspace, payload: dict, created_by):
     # ---------------------------------------
     # AUTOMATION EVENT
     # ---------------------------------------
-    _emit_lead_created_event(lead, created_by)
+    _emit_lead_created_event(
+        lead,
+        created_by,
+        allow_sync_fallback=automation_sync_fallback,
+    )
 
     return lead
 
@@ -31,8 +35,9 @@ def create_lead(*, workspace, payload: dict, created_by):
 # ---------------------------------------
 # EVENT EMITTER
 # ---------------------------------------
-def _emit_lead_created_event(lead, user):
+def _emit_lead_created_event(lead, user, allow_sync_fallback=True):
     """
+    Emits 'lead.created' automation event.
     Lazy import to avoid circular imports.
     """
 
@@ -45,12 +50,13 @@ def _emit_lead_created_event(lead, user):
         event_name="lead.created",
         workspace=lead.workspace,
         payload={
-            "id": lead.id,
-            "model": "lead",
+            "target_object_id": lead.id,
+            "target_model": "Lead",
             "email": lead.email,
             "phone": lead.phone,
             "status": lead.status,
-            "assigned_to": lead.assigned_to_id,
+            "assigned_to": getattr(lead, "assigned_to_id", None),
         },
         user=user,
+        allow_sync_fallback=allow_sync_fallback,
     )

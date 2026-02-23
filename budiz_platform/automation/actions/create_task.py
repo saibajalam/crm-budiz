@@ -20,8 +20,8 @@ def execute(payload, params, workspace, user):
         assigned_to_id=params.get("assigned_to_id"),
         priority=params.get("priority"),
         created_by=user,
-        related_object_id=payload.get("id"),
-        related_to_type=payload.get("model"),
+        related_object_id=payload.get("target_object_id"),
+        related_to_type=payload.get("target_model"),
         completed_at=params.get("completed_at"),
     )
 
