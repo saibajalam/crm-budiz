@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0007_user_trial_ends_at_user_trial_starts_at'),
+        ("authentication", "0007_user_trial_ends_at_user_trial_starts_at"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='user',
-            name='reminder_sent',
+            model_name="user",
+            name="reminder_sent",
             field=models.BooleanField(default=False),
         ),
     ]

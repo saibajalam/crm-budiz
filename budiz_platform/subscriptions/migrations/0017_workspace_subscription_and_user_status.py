@@ -79,7 +79,7 @@ class Migration(migrations.Migration):
             field=models.OneToOneField(
                 on_delete=django.db.models.deletion.CASCADE,
                 related_name="subscription",
-                to="accounts.user",
+                to="authentication.user",
             ),
         ),
         migrations.CreateModel(

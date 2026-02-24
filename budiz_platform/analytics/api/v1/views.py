@@ -23,7 +23,7 @@ from workspaces.permissions import IsWorkspaceMember
 from django.db.models.functions import TruncDate
 from django.db.models import Case, When, F, IntegerField, DecimalField
 from django.shortcuts import get_object_or_404
-from accounts.models import User
+from authentication.models import User
 from forms.models import Form, FormSubmission
 from ...services.time_to_conversion import time_to_conversion_analytics
 from ...services.funnel_service import get_user_funnel

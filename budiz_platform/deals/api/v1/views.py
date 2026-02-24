@@ -286,11 +286,10 @@ class DealRestoreAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            deal = Deal.all_objects.get(
-                id=deal_id, workspace=workspace, is_deleted=True
-            )
-        except Deal.DoesNotExist:
+        deal = Deal.all_objects.filter(
+            id=deal_id, workspace=workspace, is_deleted=True
+        ).first()
+        if not deal:
             return Response(
                 {
                     "message": "Deal not found or not deleted",
@@ -453,9 +452,10 @@ class CreateDealActivityAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            deal = Deal.objects.get(id=deal_id, workspace=workspace, is_deleted=False)
-        except Deal.DoesNotExist:
+        deal = Deal.objects.filter(
+            id=deal_id, workspace=workspace, is_deleted=False
+        ).first()
+        if not deal:
             return Response(
                 {
                     "success": False,

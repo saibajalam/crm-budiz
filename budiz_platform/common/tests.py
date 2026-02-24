@@ -1,6 +1,6 @@
 from django.test import TestCase, RequestFactory
 
-from accounts.models import User, Role, UserRole
+from authentication.models import User, Role, UserRole
 from common.permissions import IsSuperAdmin
 
 

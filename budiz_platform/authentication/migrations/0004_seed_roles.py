@@ -2,8 +2,9 @@
 
 from django.db import migrations
 
+
 def create_roles(apps, schema_editor):
-    Role = apps.get_model("accounts", "Role")
+    Role = apps.get_model("authentication", "Role")
 
     mapping = {
         "superadmin": "SuperAdmin",
@@ -15,11 +16,11 @@ def create_roles(apps, schema_editor):
     for old, new in mapping.items():
         Role.objects.filter(name=old).update(name=new)
 
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0003_seed_roles'),
+        ("authentication", "0003_seed_roles"),
     ]
 
-    operations = [
-    ]
+    operations = []

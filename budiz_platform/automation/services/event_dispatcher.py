@@ -31,21 +31,42 @@ def emit_event(
     if not workspace:
         return  # Cannot process without workspace context
 
-    try:
-        run_automation_event.apply_async(
-            kwargs={
-                "workspace_id": workspace.id,
-                "event_name": event_name,
-                "payload": payload,
-                "user_id": user.id if user else None,
-            },
-            retry=False,
-            ignore_result=True,
-        )
-        return
-    except Exception:
-        logger.exception(
-            "Celery dispatch failed for automation event; falling back to sync execution"
+    async_enabled = getattr(settings, "AUTOMATION_ASYNC_ENABLED", True)
+
+    if async_enabled:
+        try:
+            run_automation_event.apply_async(
+                kwargs={
+                    "workspace_id": workspace.id,
+                    "event_name": event_name,
+                    "payload": payload,
+                    "user_id": user.id if user else None,
+                },
+                retry=False,
+                ignore_result=True,
+            )
+            return
+        except Exception as exc:
+            error_message = str(exc)
+            is_broker_connection_error = (
+                "Connection refused" in error_message
+                or "Error 61 connecting to localhost:6379" in error_message
+            )
+
+            if is_broker_connection_error:
+                logger.warning(
+                    "Celery broker unavailable for automation event dispatch; using fallback",
+                    extra={"event_name": event_name, "workspace_id": workspace.id},
+                )
+            else:
+                logger.exception(
+                    "Celery dispatch failed for automation event; falling back to sync execution"
+                )
+
+    else:
+        logger.info(
+            "Automation async dispatch disabled; using fallback execution",
+            extra={"event_name": event_name, "workspace_id": workspace.id},
         )
 
     if not allow_sync_fallback:

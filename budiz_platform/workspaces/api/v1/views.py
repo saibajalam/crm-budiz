@@ -160,11 +160,15 @@ class AcceptWorkspaceInviteAPIView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Create membership
-        WorkspaceMember.objects.create(
+        # Create or update membership with inviter attribution
+        WorkspaceMember.objects.update_or_create(
             workspace=invite.workspace,
             user=request.user,
-            role=invite.role,
+            defaults={
+                "role": invite.role,
+                "invited_by": invite.invited_by,
+                "is_active": True,
+            },
         )
 
         invite.mark_accepted()

@@ -21,7 +21,7 @@ from ...models import User, PasswordResetToken, EmailVerificationToken
 from ...utils import send_verification_email
 from django.utils import timezone
 from datetime import timedelta
-from accounts.jobs.emails_verification import resend_email_verification
+from authentication.jobs.emails_verification import resend_email_verification
 from common.permissions import IsSuperAdmin
 from subscriptions.permissions import HasActiveSubscription
 

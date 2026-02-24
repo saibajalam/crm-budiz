@@ -4,7 +4,7 @@ from django.db import migrations
 
 
 def create_roles(apps, schema_editor):
-    Role = apps.get_model("accounts", "Role")
+    Role = apps.get_model("authentication", "Role")
 
     roles = [
         "superadmin",
@@ -16,10 +16,11 @@ def create_roles(apps, schema_editor):
     for role in roles:
         Role.objects.get_or_create(name=role)
 
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0002_alter_lead_email'),
+        ("authentication", "0002_alter_lead_email"),
     ]
 
     operations = [

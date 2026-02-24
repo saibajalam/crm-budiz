@@ -1,5 +1,5 @@
 from django.db import models
-from accounts.models import TimeStampedModel
+from authentication.models import TimeStampedModel
 from core.constants import LEAD_SOURCE_CHOICES, LEAD_STATUS_CHOICES
 from django.conf import settings
 from common.managers import SoftDeleteManager

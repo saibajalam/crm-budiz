@@ -53,12 +53,9 @@ def process_event(event_name: str, payload: dict, workspace, user=None):
     """
     Main automation processor.
 
-    Flow:
-    1. Fetch matching rules
-    2. Idempotency check
-    3. Evaluate conditions
-    4. Execute actions
-    5. Log + analytics
+    Guarantees:
+    - Exactly ONE AutomationExecutionLog per matched rule
+    - Logs for skipped / success / failed cases
     """
 
     rules = match_rules(workspace, event_name, payload)
@@ -67,75 +64,91 @@ def process_event(event_name: str, payload: dict, workspace, user=None):
         return
 
     for rule in rules:
+
+        key = f"{event_name}:{rule.id}:{payload.get('target_object_id')}"
+        target_object_id = payload.get("target_object_id")
+        target_model = payload.get("target_model")
+
+        status = "skipped"
+        error_message = ""
+        error_trace = ""
+
         try:
             # -----------------------------------
-            # IDEMPOTENCY KEY
-            # prevents duplicate execution
+            # IDEMPOTENCY CHECK
             # -----------------------------------
-            key = f"{event_name}:{rule.id}:{payload.get('target_object_id')}"
-
             if already_executed(key):
-                continue
+                status = "skipped"
 
-            # -----------------------------------
-            # CONDITION EVALUATION
-            # -----------------------------------
-            conditions = _rule_conditions(rule)
-
-            if not evaluate_conditions(conditions, payload):
-                continue
-
-            # -----------------------------------
-            # EXECUTE ACTIONS (with logging wrapper)
-            # -----------------------------------
-            try:
-                execute_with_logging(
-                    workspace=workspace,
-                    rule=rule,
-                    event_type=event_name,
-                    payload=payload,
-                    target_object_id=payload.get("target_object_id"),
-                    target_model=payload.get("target_model"),
-                    idempotency_key=key,
-                    action_type="rule_execution",
-                    func=lambda: execute_actions(
-                        _rule_actions(rule),
-                        payload,
-                        workspace,
-                        user,
-                    ),
-                )
-
+            else:
                 # -----------------------------------
-                # SUCCESS ANALYTICS
+                # CONDITION EVALUATION
                 # -----------------------------------
-                update_automation_metrics(workspace, success=True)
+                conditions = _rule_conditions(rule)
 
-            except Exception as action_error:
-                # -----------------------------------
-                # FAILURE ANALYTICS
-                # -----------------------------------
-                update_automation_metrics(workspace, success=False)
+                if not evaluate_conditions(conditions, payload):
+                    status = "skipped"
 
-                # Re-raise so logging wrapper handles it
-                raise action_error
+                else:
+                    # -----------------------------------
+                    # ACTIONS
+                    # -----------------------------------
+                    actions = _rule_actions(rule)
+
+                    if not actions.exists():
+                        status = "skipped"
+
+                    else:
+                        # -----------------------------------
+                        # EXECUTE ACTIONS
+                        # -----------------------------------
+                        try:
+                            execute_actions(
+                                actions,
+                                payload,
+                                workspace,
+                                user,
+                            )
+
+                            update_automation_metrics(workspace, success=True)
+                            status = "success"
+
+                        except Exception as action_error:
+                            update_automation_metrics(workspace, success=False)
+                            status = "failed"
+                            error_message = str(action_error)
+                            error_trace = traceback.format_exc()
 
         except Exception as e:
-            # -----------------------------------
-            # HARD FAILURE LOG
-            # (rule crash, evaluation crash, etc.)
-            # -----------------------------------
+            # Hard failure (rule crash / evaluation crash)
+            status = "failed"
+            error_message = str(e)
+            error_trace = traceback.format_exc()
+
+        # -----------------------------------
+        # 🔒 SINGLE GUARANTEED LOG PER RULE
+        # -----------------------------------
+        try:
             create_execution_log(
                 workspace=workspace,
                 rule=rule,
                 event_type=event_name,
                 payload=payload,
-                target_object_id=payload.get("target_object_id"),
-                target_model=payload.get("target_model"),
-                status="failed",
-                error_message=str(e),
-                error_trace=traceback.format_exc(),
+                target_object_id=target_object_id,
+                target_model=target_model,
+                idempotency_key=key,
+                action_type="rule_execution",
+                status=status,
+                error_message=error_message,
+                error_trace=error_trace,
             )
+        except Exception as log_error:
+            # Logging should NEVER break the processor
+            print(
+                f"[Automation] Failed to write execution log for rule {rule.id}: {log_error}"
+            )
+
+        print(f"Rule {rule.id} processed: {status}")
 
 
 # ============================================================

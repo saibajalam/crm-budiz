@@ -1,5 +1,5 @@
 from rest_framework.permissions import BasePermission
-from accounts.models import UserRole
+from authentication.models import UserRole
 from workspaces.models import WorkspaceMember
 
 

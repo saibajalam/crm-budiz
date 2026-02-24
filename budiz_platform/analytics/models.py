@@ -29,7 +29,7 @@ class DealAnalytics(models.Model):
 
 class UserAnalytics(models.Model):
     user = models.ForeignKey(
-        "accounts.User",
+        "authentication.User",
         on_delete=models.CASCADE,
         related_name="analytics",
     )

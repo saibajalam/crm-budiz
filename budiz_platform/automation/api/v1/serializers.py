@@ -15,9 +15,7 @@ class AutomationConditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationCondition
         fields = ["id", "rule", "field", "operator", "value"]
-        extra_kwargs = {
-            "rule": {"read_only": True},
-        }
+        read_only_fields = ["rule"]
 
     def validate_operator(self, val):
         if val not in OPERATORS:
@@ -32,9 +30,7 @@ class AutomationActionSerializer(serializers.ModelSerializer):
     class Meta:
         model = AutomationAction
         fields = ["id", "rule", "action_type", "config", "order"]
-        extra_kwargs = {
-            "rule": {"read_only": True},
-        }
+        read_only_fields = ["rule"]
 
     def validate_action_type(self, val):
         action_types = {choice[0] for choice in ACTION_CHOICES}
@@ -75,8 +71,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return val
 
     def create(self, validated_data):
-        conditions_data = validated_data.pop("automation_conditions", [])
-        actions_data = validated_data.pop("automation_actions", [])
+        conditions_data = validated_data.pop("conditions", [])
+        actions_data = validated_data.pop("actions", [])
 
         workspace = self.context["workspace"]
         created_by = self.context.get("user")
@@ -101,8 +97,8 @@ class AutomationRuleSerializer(serializers.ModelSerializer):
         return rule
 
     def update(self, instance, validated_data):
-        conditions_data = validated_data.pop("automation_conditions", None)
-        actions_data = validated_data.pop("automation_actions", None)
+        conditions_data = validated_data.pop("conditions", None)
+        actions_data = validated_data.pop("actions", None)
 
         instance.name = validated_data.get("name", instance.name)
         instance.event_name = validated_data.get("event_name", instance.event_name)

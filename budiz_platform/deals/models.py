@@ -114,7 +114,7 @@ class DealActivity(TimeStampedModel, SoftDeleteModel):
         ],
     )
     assigned_to = models.ForeignKey(
-        "accounts.User",
+        "authentication.User",
         on_delete=models.CASCADE,
     )
     deal = models.ForeignKey(

@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     # own installed apps
     "rest_framework",
     "drf_spectacular",
-    "accounts.apps.AccountsConfig",
+    "authentication.apps.AuthenticationConfig",
     "leads.apps.LeadsConfig",
     "subscriptions.apps.SubscriptionsConfig",
     "common.apps.CommonConfig",
@@ -142,7 +142,7 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "authentication.User"
 
 from datetime import timedelta
 
@@ -178,7 +178,7 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
     "COMPONENT_SPLIT_REQUEST": True,
-    "SECURITY": [{"jwtAuth": []}],
+    "SECURITY": [{"jwtAuth": [], "workspaceHeader": []}],
     "ENUM_NAME_OVERRIDES": {
         "EventNameEnum": [
             "lead.created",
@@ -207,7 +207,13 @@ SPECTACULAR_SETTINGS = {
                 "type": "http",
                 "scheme": "bearer",
                 "bearerFormat": "JWT",
-            }
+            },
+            "workspaceHeader": {
+                "type": "apiKey",
+                "in": "header",
+                "name": "X-Workspace-ID",
+                "description": "Workspace ID for multi-tenant isolation",
+            },
         }
     },
 }
@@ -247,6 +253,10 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_ACKS_LATE = True
 CELERY_TASK_REJECT_ON_WORKER_LOST = True
 CELERY_TASK_TIME_LIMIT = 30 * 60
+
+# Enable Celery-based async automation dispatch.
+# In local DEBUG mode this defaults to False to avoid requiring Redis.
+AUTOMATION_ASYNC_ENABLED = True
 
 # If True, run automation synchronously when Celery/Redis is unavailable.
 AUTOMATION_SYNC_FALLBACK = True
