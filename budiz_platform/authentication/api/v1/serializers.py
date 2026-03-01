@@ -147,6 +147,12 @@ class ForgotPasswordSerializer(serializers.Serializer):
 class ResetPasswordSerializer(serializers.Serializer):
     token = serializers.UUIDField()
     new_password = serializers.CharField(min_length=8)
+    confirm_password = serializers.CharField(min_length=8)
+
+    def validate(self, data):
+        if data["new_password"] != data["confirm_password"]:
+            raise serializers.ValidationError("Passwords do not match")
+        return data
 
 
 class VerifyEmailSerializer(serializers.Serializer):
