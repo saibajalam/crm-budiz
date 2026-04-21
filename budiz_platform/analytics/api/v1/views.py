@@ -64,11 +64,13 @@ class AnalyticsDashboardAPIView(APIView):
 
         deals = Deal.objects.filter(
             workspace=workspace,
+            is_deleted=False,
             created_at__date__range=[start_date, end_date],
         )
 
         leads = Lead.objects.filter(
             workspace=workspace,
+            is_deleted=False,
             created_at__date__range=[start_date, end_date],
         )
 
@@ -158,6 +160,7 @@ class DealAnalyticsListAPIView(APIView):
         end_date = request.query_params.get("end_date")
 
         qs = Deal.objects.filter(workspace=workspace)
+        qs = qs.filter(is_deleted=False)
 
         if start_date:
             qs = qs.filter(created_at__date__gte=start_date)
@@ -216,6 +219,7 @@ class UserAnalyticsListAPIView(APIView):
         data = (
             Deal.objects.filter(
                 workspace=workspace,
+                is_deleted=False,
                 created_at__date__gte=start_date,
                 assigned_to__isnull=False,
             )
@@ -286,6 +290,7 @@ class UserAnalyticsDetailAPIView(APIView):
         # 4️⃣ Deals stats
         deal_stats = Deal.objects.filter(
             workspace=workspace,
+            is_deleted=False,
             assigned_to=user,
             created_at__date__range=[start_date, end_date],
         ).aggregate(
@@ -298,6 +303,7 @@ class UserAnalyticsDetailAPIView(APIView):
         # Use 'created_by' + 'is_converted' as per CRM-Buddiz design
         lead_stats = Lead.objects.filter(
             workspace=workspace,
+            is_deleted=False,
             created_by=user,
             is_converted=True,
             created_at__date__range=[start_date, end_date],
@@ -308,6 +314,7 @@ class UserAnalyticsDetailAPIView(APIView):
         # 6️⃣ Activities stats
         activity_stats = LeadActivity.objects.filter(
             workspace=workspace,
+            is_deleted=False,
             performed_by=user,
             is_completed=True,
             created_at__date__range=[start_date, end_date],

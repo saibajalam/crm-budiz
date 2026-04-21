@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "forms.apps.FormsConfig",
     "automation.apps.AutomationConfig",
     "tasks.apps.TasksConfig",
+    "contact.apps.ContactConfig",
 ]
 
 if find_spec("drf_spectacular_sidecar"):
@@ -62,6 +63,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "workspaces.middleware.WorkspaceContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "subscriptions.middleware.SubscriptionRequiredMiddleware",
@@ -198,8 +200,30 @@ SPECTACULAR_SETTINGS = {
         ],
         "DealActivityStatusEnum": ["pending", "in_progress", "completed"],
         "TaskStatusEnum": ["open", "in_progress", "done"],
-        "LeadActivityTypeEnum": ["call", "email", "meeting", "note", "task"],
-        "DealActivityTypeEnum": ["call", "meeting", "email", "other"],
+        "LeadActivityTypeEnum": [
+            "CALL",
+            "NOTE",
+            "EMAIL",
+            "STATUS_CHANGE",
+            "MEETING",
+            "call",
+            "email",
+            "meeting",
+            "note",
+            "status_change",
+            "task",
+        ],
+        "DealActivityTypeEnum": [
+            "CALL",
+            "NOTE",
+            "EMAIL",
+            "STATUS_CHANGE",
+            "MEETING",
+            "call",
+            "meeting",
+            "email",
+            "other",
+        ],
     },
     "COMPONENTS": {
         "securitySchemes": {

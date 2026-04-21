@@ -1,11 +1,13 @@
 from rest_framework import serializers
-from ...models import Deal, DealActivity
+from ...models import Deal, DealActivity, DealContact
+from contact.models import Contact
 from django.contrib.auth import get_user_model
 from common.serializers import SimpleUserSerializer
 from workspaces.models import WorkspaceMember
 from common.counter import get_next_display_number
 from common.utils import format_display_number
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema_field
 
 User = get_user_model()
 
@@ -90,9 +92,11 @@ class DealDetailSerializer(serializers.ModelSerializer):
         model = Deal
         fields = [
             "id",
+            "display_number",
             "title",
             "value",
             "probability",
+            "pipeline_stage",
             "pipeline_stage_display",
             "expected_close_date",
             "assigned_to",
@@ -328,3 +332,26 @@ class UpdateDealActivitySerializer(serializers.ModelSerializer):
             )
 
         return value
+
+
+class DealContactSerializer(serializers.ModelSerializer):
+    contact_id = serializers.PrimaryKeyRelatedField(
+        source="contact",
+        queryset=Contact.objects.filter(is_deleted=False),
+        write_only=True,
+        required=True,
+    )
+    contact = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = DealContact
+        fields = ["id", "contact_id", "contact", "role", "is_primary"]
+
+    @extend_schema_field(serializers.JSONField())
+    def get_contact(self, obj):
+        return {
+            "id": obj.contact_id,
+            "name": obj.contact.name,
+            "email": obj.contact.email,
+            "phone": obj.contact.phone,
+        }

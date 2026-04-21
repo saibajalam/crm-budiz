@@ -1,7 +1,5 @@
 from django.urls import path
 from .views import (
-    CreateDealAPIView,
-    DealRetrieveUpdateDeleteAPIView,
     DealRestoreAPIView,
     PipelineWiseDealListAPIView,
     DealAssignmentUpdateAPIView,
@@ -9,15 +7,12 @@ from .views import (
     CreateDealActivityAPIView,
     DealActivityRetrieveUpdateDestroyAPIView,
     RestoreDealActivityAPIView,
+    DealContactListCreateAPIView,
+    DealContactDeleteAPIView,
 )
 
 urlpatterns = [
-    path("deals/", CreateDealAPIView.as_view(), name="create_deal"),
-    path(
-        "deals/<int:deal_id>/",
-        DealRetrieveUpdateDeleteAPIView.as_view(),
-        name="retrieve_update_delete_deal",
-    ),
+    # Canonical /api/deals/ CRUD is served via core router.
     path(
         "deals/<int:deal_id>/restore/",
         DealRestoreAPIView.as_view(),
@@ -50,5 +45,15 @@ urlpatterns = [
         "deals/<int:deal_id>/activities/<int:activity_id>/restore/",
         RestoreDealActivityAPIView.as_view(),
         name="restore_deal_activity",
+    ),
+    path(
+        "deals/<int:deal_id>/contacts/",
+        DealContactListCreateAPIView.as_view(),
+        name="deal-contacts-list-create",
+    ),
+    path(
+        "deals/<int:deal_id>/contacts/<int:contact_id>/",
+        DealContactDeleteAPIView.as_view(),
+        name="deal-contacts-delete",
     ),
 ]

@@ -32,16 +32,21 @@ class IsValidWorkspaceHeader(BasePermission):
         except (TypeError, ValueError):
             raise ValidationError({"detail": "Workspace header is required."})
 
-        is_member = WorkspaceMember.objects.filter(
-            workspace_id=workspace_id,
-            user=request.user,
-            is_active=True,
-        ).exists()
+        membership = (
+            WorkspaceMember.objects.select_related("workspace")
+            .filter(
+                workspace_id=workspace_id,
+                user=request.user,
+                is_active=True,
+            )
+            .first()
+        )
 
-        if not is_member:
+        if not membership:
             raise PermissionDenied({"detail": "Please enter your own workspace_id."})
 
         request.workspace_id = workspace_id
+        request.workspace = membership.workspace
         setattr(request.user, "_current_workspace_id", workspace_id)
         return True
 

@@ -36,6 +36,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from workspaces.utils import get_user_workspace
 from workspaces.permissions import IsWorkspaceMember, IsWorkspaceOwnerOrAdmin
 from common.utils import format_display_number
+from common.eventing import emit_crm_event
 
 
 # -------------------
@@ -237,6 +238,25 @@ class LeadRetrieveUpdateDeleteAPIView(RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+
+        changed_fields = list(request.data.keys())
+        if changed_fields:
+            LeadActivity.objects.create(
+                lead=instance,
+                workspace=instance.workspace,
+                activity_type="status_change",
+                priority="medium",
+                subject=f"Lead updated: {', '.join(changed_fields)}",
+                description="Lead fields were updated",
+                performed_by=request.user,
+            )
+            emit_crm_event(
+                event_name="activity.created",
+                workspace=instance.workspace,
+                payload={"entity_id": instance.id, "updated_fields": changed_fields},
+                user=request.user,
+            )
+
         response_serializer = LeadDetailSerializer(
             instance, context={"request": request}
         )

@@ -107,6 +107,11 @@ class DealActivity(TimeStampedModel, SoftDeleteModel):
     activity_type = models.CharField(
         max_length=50,
         choices=[
+            ("CALL", "Call"),
+            ("NOTE", "Note"),
+            ("EMAIL", "Email"),
+            ("STATUS_CHANGE", "Status Change"),
+            ("MEETING", "Meeting"),
             ("call", "Call"),
             ("meeting", "Meeting"),
             ("email", "Email"),
@@ -139,4 +144,33 @@ class DealActivity(TimeStampedModel, SoftDeleteModel):
             models.Index(fields=["workspace"]),
             models.Index(fields=["created_at"]),
             models.Index(fields=["workspace", "created_at"]),
+        ]
+
+
+class DealContact(TimeStampedModel):
+    deal = models.ForeignKey(
+        "deals.Deal",
+        on_delete=models.CASCADE,
+        related_name="deal_contacts",
+    )
+    contact = models.ForeignKey(
+        "contact.Contact",
+        on_delete=models.CASCADE,
+        related_name="contact_deals",
+    )
+    workspace = models.ForeignKey(
+        "workspaces.Workspace",
+        on_delete=models.CASCADE,
+        related_name="deal_contacts",
+    )
+    role = models.CharField(max_length=100, blank=True, default="")
+    is_primary = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+
+    class Meta:
+        db_table = "deal_contact"
+        unique_together = ("deal", "contact")
+        indexes = [
+            models.Index(fields=["workspace", "deal"]),
+            models.Index(fields=["workspace", "contact"]),
         ]

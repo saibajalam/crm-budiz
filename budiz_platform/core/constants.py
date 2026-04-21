@@ -36,9 +36,15 @@ PRIORITY_CHOICES = [
 ]
 
 ACTIVITY_TYPES = [
+    ("CALL", "Call"),
+    ("NOTE", "Note"),
+    ("EMAIL", "Email"),
+    ("STATUS_CHANGE", "Status Change"),
+    ("MEETING", "Meeting"),
     ("call", "Call"),
     ("email", "Email"),
     ("meeting", "Meeting"),
     ("note", "Note"),
+    ("status_change", "Status Change"),
     ("task", "Task"),
 ]

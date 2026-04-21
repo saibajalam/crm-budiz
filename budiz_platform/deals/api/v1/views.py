@@ -2,6 +2,7 @@ from rest_framework.views import APIView
 from rest_framework.generics import RetrieveUpdateDestroyAPIView, ListAPIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework import viewsets, filters
 from rest_framework.permissions import IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from common.swagger import workspace_header
@@ -17,6 +18,7 @@ from .serializers import (
     DealActivityFeedSerializer,
     CreateDealActivitySerializer,
     UpdateDealActivitySerializer,
+    DealContactSerializer,
 )
 from subscriptions.permissions import HasActiveSubscription
 from ...permissions import CanAssignDeal, DealAccessPermission
@@ -27,6 +29,304 @@ from workspaces.permissions import IsWorkspaceMember, IsWorkspaceOwnerOrAdmin
 from common.utils import format_display_number
 from django.utils import timezone
 from django.db import transaction
+from core.pagination import LeadPagination
+from common.api_response import api_response
+from common.eventing import emit_crm_event
+from workspaces.models import WorkspaceMember
+from deals.models import DealContact
+from django_filters.rest_framework import DjangoFilterBackend
+from .querysets import get_workspace_deal_activity_queryset
+
+
+class DealViewSet(viewsets.ModelViewSet):
+    queryset = Deal.objects.none()
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
+    pagination_class = LeadPagination
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    search_fields = ["title", "notes"]
+    ordering_fields = ["created_at", "value", "expected_close_date"]
+    ordering = ["-created_at"]
+
+    def _workspace(self):
+        return getattr(self.request, "workspace", None) or get_user_workspace(
+            self.request.user
+        )
+
+    def _is_admin(self, workspace, user):
+        if workspace and workspace.owner_id == user.id:
+            return True
+        return WorkspaceMember.objects.filter(
+            workspace=workspace,
+            user=user,
+            role__in=["admin", "owner"],
+            is_active=True,
+        ).exists()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Deal.objects.none()
+
+        if not getattr(self.request.user, "is_authenticated", False):
+            return Deal.objects.none()
+
+        workspace = self._workspace()
+        if not workspace:
+            return Deal.objects.none()
+
+        queryset = Deal.objects.filter(workspace=workspace, is_deleted=False)
+
+        stage = self.request.query_params.get("stage")
+        assigned_user = self.request.query_params.get("assigned_to")
+        min_value = self.request.query_params.get("min_value")
+        max_value = self.request.query_params.get("max_value")
+
+        if stage:
+            queryset = queryset.filter(pipeline_stage__iexact=stage)
+        if assigned_user:
+            queryset = queryset.filter(assigned_to_id=assigned_user)
+        if min_value:
+            queryset = queryset.filter(value__gte=min_value)
+        if max_value:
+            queryset = queryset.filter(value__lte=max_value)
+
+        return queryset.select_related("assigned_to", "workspace")
+
+    def get_serializer_class(self):
+        if self.action == "create":
+            return CreateDealSerializer
+        if self.action in ["update", "partial_update"]:
+            return DealUpdateSerializer
+        return DealDetailSerializer
+
+    def create(self, request, *args, **kwargs):
+        workspace = self._workspace()
+        if not workspace:
+            return api_response(
+                data=None,
+                message="No active workspace found",
+                success=False,
+                error=True,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = self.get_serializer(
+            data=request.data,
+            context={"request": request, "workspace": workspace},
+        )
+        serializer.is_valid(raise_exception=True)
+        deal = serializer.save()
+
+        emit_crm_event(
+            event_name="deal.created",
+            workspace=workspace,
+            payload={"entity_id": deal.id, "updated_fields": list(request.data.keys())},
+            user=request.user,
+        )
+
+        return api_response(
+            data=DealDetailSerializer(deal, context={"request": request}).data,
+            message="Deal created successfully",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+
+        if page is not None:
+            serializer = DealDetailSerializer(page, many=True, context={"request": request})
+            paginated = self.get_paginated_response(serializer.data).data
+            return api_response(
+                data=paginated,
+                message="Deals fetched successfully",
+                status_code=status.HTTP_200_OK,
+            )
+
+        serializer = DealDetailSerializer(queryset, many=True, context={"request": request})
+        return api_response(
+            data=serializer.data,
+            message="Deals fetched successfully",
+            status_code=status.HTTP_200_OK,
+        )
+
+    def retrieve(self, request, *args, **kwargs):
+        deal = self.get_object()
+        return api_response(
+            data=DealDetailSerializer(deal, context={"request": request}).data,
+            message="Deal details fetched successfully",
+            status_code=status.HTTP_200_OK,
+        )
+
+    def partial_update(self, request, *args, **kwargs):
+        deal = self.get_object()
+        workspace = self._workspace()
+
+        is_assigned_user = deal.assigned_to_id == request.user.id
+        if not (is_assigned_user or self._is_admin(workspace, request.user)):
+            raise PermissionDenied("Only assigned users or admins can edit this deal.")
+
+        serializer = self.get_serializer(deal, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        changed_fields = list(request.data.keys())
+        if changed_fields:
+            DealActivity.objects.create(
+                deal=deal,
+                workspace=workspace,
+                title=f"Deal updated: {', '.join(changed_fields)}",
+                description="Deal fields were updated",
+                due_date=timezone.now(),
+                status="completed",
+                activity_type="STATUS_CHANGE",
+                assigned_to=request.user,
+            )
+
+        emit_crm_event(
+            event_name="deal.updated",
+            workspace=workspace,
+            payload={"entity_id": deal.id, "updated_fields": changed_fields},
+            user=request.user,
+        )
+
+        return api_response(
+            data=DealDetailSerializer(deal, context={"request": request}).data,
+            message="Deal updated successfully",
+            status_code=status.HTTP_200_OK,
+        )
+
+    def destroy(self, request, *args, **kwargs):
+        deal = self.get_object()
+        deal.soft_delete()
+
+        emit_crm_event(
+            event_name="deal.deleted",
+            workspace=deal.workspace,
+            payload={"entity_id": deal.id, "updated_fields": ["is_deleted"]},
+            user=request.user,
+        )
+
+        return api_response(
+            data=None,
+            message="Deal deleted successfully",
+            status_code=status.HTTP_200_OK,
+        )
+
+
+class DealContactListCreateAPIView(APIView):
+    serializer_class = DealContactSerializer
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
+
+    @extend_schema(
+        operation_id="deal_contacts_list",
+        responses={200: DealContactSerializer(many=True)},
+        tags=["Deal Contacts"],
+        parameters=[workspace_header],
+    )
+    def get(self, request, deal_id):
+        workspace = getattr(request, "workspace", None) or get_user_workspace(request.user)
+        if not workspace:
+            return api_response(
+                data=None,
+                message="No active workspace found",
+                success=False,
+                error=True,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        deal = get_object_or_404(Deal, id=deal_id, workspace=workspace, is_deleted=False)
+        relations = DealContact.objects.filter(
+            deal=deal, workspace=workspace, is_deleted=False
+        ).select_related("contact")
+        serializer = DealContactSerializer(relations, many=True)
+        return api_response(
+            data=serializer.data,
+            message="Deal contacts fetched successfully",
+            status_code=status.HTTP_200_OK,
+        )
+
+    @extend_schema(
+        operation_id="deal_contacts_create",
+        request=DealContactSerializer,
+        responses={201: DealContactSerializer},
+        tags=["Deal Contacts"],
+        parameters=[workspace_header],
+    )
+    def post(self, request, deal_id):
+        workspace = getattr(request, "workspace", None) or get_user_workspace(request.user)
+        if not workspace:
+            return api_response(
+                data=None,
+                message="No active workspace found",
+                success=False,
+                error=True,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        deal = get_object_or_404(Deal, id=deal_id, workspace=workspace, is_deleted=False)
+        serializer = DealContactSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        contact = serializer.validated_data["contact"]
+        relation, _ = DealContact.objects.update_or_create(
+            deal=deal,
+            contact=contact,
+            defaults={
+                "workspace": workspace,
+                "role": serializer.validated_data.get("role", ""),
+                "is_primary": serializer.validated_data.get("is_primary", False),
+                "is_deleted": False,
+            },
+        )
+
+        if relation.is_primary:
+            DealContact.objects.filter(deal=deal, workspace=workspace).exclude(
+                id=relation.id
+            ).update(is_primary=False)
+
+        return api_response(
+            data=DealContactSerializer(relation).data,
+            message="Contact linked to deal successfully",
+            status_code=status.HTTP_201_CREATED,
+        )
+
+
+class DealContactDeleteAPIView(APIView):
+    serializer_class = DealContactSerializer
+    permission_classes = [IsAuthenticated, HasActiveSubscription, IsWorkspaceMember]
+
+    @extend_schema(
+        operation_id="deal_contacts_delete",
+        responses={200: OpenApiResponse(description="Contact unlinked from deal")},
+        tags=["Deal Contacts"],
+        parameters=[workspace_header],
+    )
+    def delete(self, request, deal_id, contact_id):
+        workspace = getattr(request, "workspace", None) or get_user_workspace(request.user)
+        if not workspace:
+            return api_response(
+                data=None,
+                message="No active workspace found",
+                success=False,
+                error=True,
+                status_code=status.HTTP_400_BAD_REQUEST,
+            )
+
+        relation = get_object_or_404(
+            DealContact,
+            deal_id=deal_id,
+            contact_id=contact_id,
+            workspace=workspace,
+            is_deleted=False,
+        )
+        relation.is_deleted = True
+        relation.save(update_fields=["is_deleted"])
+
+        return api_response(
+            data=None,
+            message="Contact unlinked from deal successfully",
+            status_code=status.HTTP_200_OK,
+        )
 
 
 class CreateDealAPIView(APIView):
@@ -371,20 +671,11 @@ class DealActivityFeedAPIView(ListAPIView):
         workspace = get_user_workspace(user)
         if not workspace:
             return DealActivity.objects.none()  # Return empty queryset if no workspace
-        queryset = DealActivity.objects.filter(deal__workspace=workspace)
-
-        category = self.request.query_params.get("category")
-        if category == "upcoming":
-            queryset = queryset.filter(
-                due_date__gt=timezone.now(), status__in=["pending", "cancelled"]
-            )
-        elif category == "overdue":
-            queryset = queryset.filter(
-                due_date__lt=timezone.now(), status__in=["pending", "cancelled"]
-            )
-        elif category == "completed":
-            queryset = queryset.filter(status="completed")
-
+        queryset = get_workspace_deal_activity_queryset(
+            workspace=workspace,
+            deal_id=self.kwargs.get("deal_id"),
+            category=self.request.query_params.get("category"),
+        )
         return queryset.order_by("-due_date")
 
     @extend_schema(
@@ -471,6 +762,15 @@ class CreateDealActivityAPIView(APIView):
         )
         if serializer.is_valid():
             activity = serializer.save(deal=deal)
+            emit_crm_event(
+                event_name="activity.created",
+                workspace=workspace,
+                payload={
+                    "entity_id": activity.id,
+                    "updated_fields": list(request.data.keys()) or ["activity_type"],
+                },
+                user=request.user,
+            )
             response_serializer = DealActivityFeedSerializer(activity)
             return Response(
                 {
@@ -505,8 +805,9 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
         if not workspace:
             return DealActivity.objects.none()
         deal_id = self.kwargs.get("deal_id")
-        return DealActivity.objects.filter(
-            deal_id=deal_id, deal__workspace=workspace, is_deleted=False
+        return get_workspace_deal_activity_queryset(
+            workspace=workspace,
+            deal_id=deal_id,
         )
 
     @extend_schema(
@@ -575,6 +876,93 @@ class DealActivityRetrieveUpdateDestroyAPIView(RetrieveUpdateDestroyAPIView):
             },
             status=status.HTTP_204_NO_CONTENT,
         )
+
+
+class LegacyDealListAPIView(APIView):
+    """Deprecated compatibility endpoint. Use /api/deals/."""
+
+    @extend_schema(
+        operation_id="legacy_deals_list",
+        responses={200: DealDetailSerializer(many=True)},
+        deprecated=True,
+        tags=["Deals (Legacy)"],
+        parameters=[workspace_header],
+    )
+    def get(self, request, *args, **kwargs):
+        response = DealViewSet.as_view({"get": "list"})(request, *args, **kwargs)
+        response["X-Deprecated"] = "This endpoint is deprecated. Use /api/deals/."
+        return response
+
+    @extend_schema(
+        operation_id="legacy_deals_create",
+        request=CreateDealSerializer,
+        responses={201: DealDetailSerializer},
+        deprecated=True,
+        tags=["Deals (Legacy)"],
+        parameters=[workspace_header],
+    )
+    def post(self, request, *args, **kwargs):
+        response = DealViewSet.as_view({"post": "create"})(request, *args, **kwargs)
+        response["X-Deprecated"] = "This endpoint is deprecated. Use /api/deals/."
+        return response
+
+
+class LegacyDealDetailAPIView(APIView):
+    """Deprecated compatibility endpoint. Use /api/deals/{id}/."""
+
+    @extend_schema(
+        operation_id="legacy_deals_detail_retrieve",
+        responses={200: DealDetailSerializer},
+        deprecated=True,
+        tags=["Deals (Legacy)"],
+        parameters=[workspace_header],
+    )
+    def get(self, request, *args, **kwargs):
+        response = DealViewSet.as_view({"get": "retrieve"})(request, *args, **kwargs)
+        response["X-Deprecated"] = "This endpoint is deprecated. Use /api/deals/{id}/."
+        return response
+
+    @extend_schema(
+        operation_id="legacy_deals_detail_patch",
+        request=DealUpdateSerializer,
+        responses={200: DealDetailSerializer},
+        deprecated=True,
+        tags=["Deals (Legacy)"],
+        parameters=[workspace_header],
+    )
+    def patch(self, request, *args, **kwargs):
+        response = DealViewSet.as_view({"patch": "partial_update"})(
+            request, *args, **kwargs
+        )
+        response["X-Deprecated"] = "This endpoint is deprecated. Use /api/deals/{id}/."
+        return response
+
+    @extend_schema(
+        operation_id="legacy_deals_detail_put",
+        request=DealUpdateSerializer,
+        responses={200: DealDetailSerializer},
+        deprecated=True,
+        tags=["Deals (Legacy)"],
+        parameters=[workspace_header],
+    )
+    def put(self, request, *args, **kwargs):
+        response = DealViewSet.as_view({"patch": "partial_update"})(
+            request, *args, **kwargs
+        )
+        response["X-Deprecated"] = "This endpoint is deprecated. Use /api/deals/{id}/."
+        return response
+
+    @extend_schema(
+        operation_id="legacy_deals_detail_delete",
+        responses={200: OpenApiResponse(description="Deal deleted")},
+        deprecated=True,
+        tags=["Deals (Legacy)"],
+        parameters=[workspace_header],
+    )
+    def delete(self, request, *args, **kwargs):
+        response = DealViewSet.as_view({"delete": "destroy"})(request, *args, **kwargs)
+        response["X-Deprecated"] = "This endpoint is deprecated. Use /api/deals/{id}/."
+        return response
 
 
 class RestoreDealActivityAPIView(APIView):
